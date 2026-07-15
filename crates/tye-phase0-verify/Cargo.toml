@@ -1,0 +1,14 @@
+[package]
+name = "tye-phase0-verify"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tye-core-models = { path = "../tye-core-models" }
+tye-core-storage = { path = "../tye-core-storage" }
+tye-core-vault = { path = "../tye-core-vault" }
+tye-core-events = { path = "../tye-core-events" }
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4"] }
+chrono = "0.4"
+serde_json = "1"

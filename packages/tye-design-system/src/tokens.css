@@ -1,0 +1,34 @@
+/* packages/tye-design-system/src/tokens.css */
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap');
+
+:root {
+  /* Poster Palette (Brand Colors per tye-brand-system skill) */
+  --tye-cream: #EDE8DC;      /* base surface / background, all four apps */
+  --tye-ink: #1A1A1A;        /* primary text / line art */
+  --tye-lavender: #8B85C4;   /* Tyegit module accent */
+  --tye-mustard: #D9A441;    /* TyeRun module accent */
+  --tye-api-accent: #C86446; /* TyeApi Activity Bar accent (terracotta/rust direction) */
+
+  /* Derived UI State Colors (desaturated, poster-palette consistent) */
+  --tye-error: #B85343;
+  --tye-success: #678363;
+  --tye-warning: #C79339;
+
+  /* Typography Families */
+  --tye-font-display: 'Geist Pixel', monospace;
+  --tye-font-sans: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  --tye-font-mono: 'Geist Mono', monospace;
+  --tye-font-retro: 'Departure Mono', monospace;
+
+  /* Illustration style convention */
+  --tye-illustration-style: stipple;
+}
+
+body {
+  background-color: var(--tye-cream);
+  color: var(--tye-ink);
+  font-family: var(--tye-font-sans);
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
