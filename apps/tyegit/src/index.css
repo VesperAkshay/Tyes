@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #EDE8DC;
+  --color-ink: #1A1A1A;
+  --color-lavender: #8B85C4;
+  --color-mustard: #D9A441;
+  --font-sans: "Geist Sans", sans-serif;
+  --font-mono: "Geist Mono", monospace;
+  --font-pixel: "Geist Pixel", sans-serif;
+  --font-departure: "Departure Mono", monospace;
+}
+
+:root {
+  --tye-cream: #EDE8DC;
+  --tye-ink: #1A1A1A;
+  --tye-lavender: #8B85C4;
+  --tye-mustard: #D9A441;
+  --tye-font-sans: "Geist Sans", sans-serif;
+  --tye-font-mono: "Geist Mono", monospace;
+  --tye-font-display: "Geist Pixel", sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--tye-cream);
+  color: var(--tye-ink);
+  font-family: var(--tye-font-sans);
+  overflow: hidden;
+}
+
+/* Custom halftone/pixelated UI borders & accents */
+.tye-card {
+  background-color: var(--tye-cream);
+  border: 2px solid var(--tye-ink);
+  box-shadow: 4px 4px 0px 0px var(--tye-ink);
+  transition: all 0.15s ease;
+}
+
+.tye-card:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0px 0px var(--tye-ink);
+}
+
+.tye-btn {
+  background-color: var(--tye-cream);
+  color: var(--tye-ink);
+  border: 2px solid var(--tye-ink);
+  box-shadow: 2px 2px 0px 0px var(--tye-ink);
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.tye-btn:hover {
+  background-color: var(--tye-lavender);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px 0px var(--tye-ink);
+}
+
+.tye-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px 0px var(--tye-ink);
+}
+
+.tye-btn-primary {
+  background-color: var(--tye-lavender);
+}

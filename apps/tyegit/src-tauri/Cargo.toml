@@ -1,0 +1,25 @@
+[package]
+name = "tyegit"
+version = "0.1.0"
+description = "Tyegit — Repository & Configuration Engine Desktop Application"
+authors = ["Tyegit Team"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+sqlx.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+
+tye-core-models.workspace = true
+tye-core-storage.workspace = true
+tye-core-vault.workspace = true
+tye-core-events.workspace = true
+tye-git-engine.workspace = true
