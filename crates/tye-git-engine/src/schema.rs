@@ -58,6 +58,24 @@ pub async fn run_migrations(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
             timestamp TEXT NOT NULL,
             PRIMARY KEY(repo_path, commit_id)
         );
+
+        CREATE TABLE IF NOT EXISTS git_checkpoints (
+            id TEXT PRIMARY KEY,
+            repo_path TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            operation TEXT NOT NULL,
+            head_before TEXT NOT NULL,
+            head_after TEXT,
+            branch_before TEXT NOT NULL,
+            stash_oid TEXT,
+            snapshot_json TEXT NOT NULL,
+            ai_explanation TEXT NOT NULL,
+            is_pinned INTEGER NOT NULL DEFAULT 0,
+            custom_label TEXT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_git_checkpoints_repo ON git_checkpoints(repo_path, timestamp DESC);
+        CREATE INDEX IF NOT EXISTS idx_git_checkpoints_pinned ON git_checkpoints(repo_path, is_pinned);
         "#
     )
     .execute(pool)

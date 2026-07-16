@@ -362,3 +362,68 @@ export interface ResetResult {
   mode: ResetMode;
   message: string;
 }
+
+// --- Milestone 4B Types: Git Time Machine & Recovery Center (F-042) ---
+
+export type ConflictRisk = "None" | "Low" | "High";
+
+export interface RollbackFileDelta {
+  path: string;
+  status: string;
+  additions: number;
+  deletions: number;
+}
+
+export interface CheckpointItem {
+  id: string;
+  repo_path: string;
+  timestamp: string;
+  operation: string;
+  head_before: string;
+  head_after?: string;
+  branch_before: string;
+  stash_oid?: string;
+  snapshot_json: string;
+  ai_explanation: string;
+  is_pinned: boolean;
+  custom_label?: string;
+}
+
+export interface RollbackPreview {
+  checkpoint_id: string;
+  target_commit_short: string;
+  commits_undone: number;
+  commits_restored: number;
+  files_modified: number;
+  files_added: number;
+  files_deleted: number;
+  conflict_risk: ConflictRisk;
+  diff_summaries: RollbackFileDelta[];
+  summary_text: string;
+}
+
+export interface RollbackResult {
+  success: boolean;
+  restored_head: string;
+  stash_applied: boolean;
+  message: string;
+}
+
+export type RecoveryType = "LostCommit" | "DeletedBranch" | "ReflogEntry" | "DanglingBlob";
+
+export interface RecoveryItem {
+  id: string;
+  recovery_type: RecoveryType;
+  commit_oid: string;
+  short_oid: string;
+  subject: string;
+  timestamp: string;
+  details: string;
+}
+
+export interface DeleteCheckpointResult {
+  deleted_id: string;
+  display_name: string;
+  was_pinned: boolean;
+}
+

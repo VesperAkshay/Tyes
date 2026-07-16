@@ -13,6 +13,7 @@ import { StashManagerModal } from './Stash/StashManagerModal';
 import { MergeBranchModal } from './Modals/MergeBranchModal';
 import { ResetBranchModal } from './Modals/ResetBranchModal';
 import { InteractiveRebaseModal } from './Modals/InteractiveRebaseModal';
+import { TimeMachineView } from './TimeMachine/TimeMachineView';
 import { StatusResult, ConflictFileItem, BranchItem, BranchList, CommitListItem } from '../types';
 import {
   RiArrowLeftLine,
@@ -26,6 +27,7 @@ import {
   RiInboxArchiveLine,
   RiGitMergeLine,
   RiAlertFill,
+  RiTimeLine,
 } from 'react-icons/ri';
 
 interface WorkspaceViewProps {
@@ -34,7 +36,7 @@ interface WorkspaceViewProps {
 }
 
 export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'changes' | 'history' | 'graph' | 'branches'>('changes');
+  const [activeTab, setActiveTab] = useState<'changes' | 'history' | 'graph' | 'branches' | 'timemachine'>('changes');
   const [showRemoteModal, setShowRemoteModal] = useState<boolean>(false);
   const [showStashModal, setShowStashModal] = useState<boolean>(false);
   const [showConflictModal, setShowConflictModal] = useState<boolean>(false);
@@ -198,7 +200,17 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
                   : 'hover:bg-white/60'
               }`}
             >
-              <RiHistoryLine /> History (`F-024`)
+              <RiHistoryLine /> History
+            </button>
+            <button
+              onClick={() => setActiveTab('timemachine')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
+                activeTab === 'timemachine'
+                  ? 'bg-[var(--tye-lavender)] text-white font-bold shadow-sm'
+                  : 'hover:bg-white/60'
+              }`}
+            >
+              <RiTimeLine /> Time Machine
             </button>
           </div>
 
@@ -327,6 +339,12 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
               onSelectCommit={(cid) => setSelectedCommitId(cid)}
               refreshTrigger={refreshTrigger}
             />
+          </div>
+        )}
+
+        {activeTab === 'timemachine' && (
+          <div className="flex-1 h-full overflow-hidden">
+            <TimeMachineView repoPath={repoPath} />
           </div>
         )}
       </div>

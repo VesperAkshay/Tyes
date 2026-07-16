@@ -384,6 +384,57 @@ async fn git_branch_reset(repo_path: String, target_oid: String, mode: ResetMode
     execute_reset(&PathBuf::from(repo_path), &target_oid, mode).map_err(|e| e.to_string())
 }
 
+#[tauri::command(rename = "git:checkpoint_list")]
+async fn git_checkpoint_list(repo_path: String, limit: usize, only_pinned: bool, state: State<'_, AppState>) -> Result<Vec<CheckpointItem>, String> {
+    list_checkpoints(&state.pool, &PathBuf::from(repo_path), limit, only_pinned).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:checkpoint_capture_manual")]
+async fn git_checkpoint_capture_manual(repo_path: String, custom_label: String, explanation: Option<String>, state: State<'_, AppState>) -> Result<CheckpointItem, String> {
+    capture_manual_pin(&state.pool, &PathBuf::from(repo_path), &custom_label, explanation.as_deref()).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:checkpoint_toggle_pin")]
+async fn git_checkpoint_toggle_pin(checkpoint_id: String, is_pinned: bool, state: State<'_, AppState>) -> Result<(), String> {
+    toggle_pin_status(&state.pool, &checkpoint_id, is_pinned).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:checkpoint_capture_external")]
+async fn git_checkpoint_capture_external(repo_path: String, state: State<'_, AppState>) -> Result<Vec<CheckpointItem>, String> {
+    capture_external_cli_op(&state.pool, &PathBuf::from(repo_path)).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:checkpoint_install_hooks")]
+async fn git_checkpoint_install_hooks(repo_path: String) -> Result<String, String> {
+    install_terminal_hooks(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:checkpoint_preview")]
+async fn git_checkpoint_preview(repo_path: String, checkpoint_id: String, state: State<'_, AppState>) -> Result<RollbackPreview, String> {
+    preview_rollback_impact(&state.pool, &PathBuf::from(repo_path), &checkpoint_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:checkpoint_rollback")]
+async fn git_checkpoint_rollback(repo_path: String, checkpoint_id: String, state: State<'_, AppState>) -> Result<RollbackResult, String> {
+    rollback_checkpoint(&state.pool, &PathBuf::from(repo_path), &checkpoint_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:checkpoint_prune")]
+async fn git_checkpoint_prune(repo_path: String, retention_days: i64, state: State<'_, AppState>) -> Result<usize, String> {
+    prune_old_checkpoints(&state.pool, &PathBuf::from(repo_path), retention_days).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:recovery_list")]
+async fn git_recovery_list(repo_path: String) -> Result<Vec<RecoveryItem>, String> {
+    get_recovery_center_items(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:checkpoint_delete")]
+async fn git_checkpoint_delete(checkpoint_id: String, state: State<'_, AppState>) -> Result<DeleteCheckpointResult, String> {
+    delete_checkpoint(&state.pool, &checkpoint_id).await.map_err(|e| e.to_string())
+}
+
+
 async fn initialize_db() -> Pool<Sqlite> {
     let home = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")).unwrap_or_else(|_| ".".to_string());
     let tye_dir = PathBuf::from(home).join(".tye");
@@ -474,7 +525,17 @@ fn main() {
             git_branch_rebase_abort,
             git_commit_cherrypick,
             git_commit_revert,
-            git_branch_reset
+            git_branch_reset,
+            git_checkpoint_list,
+            git_checkpoint_capture_manual,
+            git_checkpoint_toggle_pin,
+            git_checkpoint_capture_external,
+            git_checkpoint_install_hooks,
+            git_checkpoint_preview,
+            git_checkpoint_rollback,
+            git_checkpoint_prune,
+            git_recovery_list,
+            git_checkpoint_delete
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
