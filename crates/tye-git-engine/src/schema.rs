@@ -36,6 +36,28 @@ pub async fn run_migrations(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
             repo_id TEXT NOT NULL,
             PRIMARY KEY(group_id, repo_id)
         );
+
+        CREATE TABLE IF NOT EXISTS git_file_status_cache (
+            repo_path TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            status TEXT NOT NULL,
+            staged_status TEXT,
+            unstaged_status TEXT,
+            is_binary BOOLEAN NOT NULL DEFAULT 0,
+            size_bytes INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY(repo_path, file_path)
+        );
+
+        CREATE TABLE IF NOT EXISTS git_recent_commits_cache (
+            repo_path TEXT NOT NULL,
+            commit_id TEXT NOT NULL,
+            short_id TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            author_name TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            PRIMARY KEY(repo_path, commit_id)
+        );
         "#
     )
     .execute(pool)

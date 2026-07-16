@@ -138,6 +138,75 @@ async fn git_group_list(state: State<'_, AppState>) -> Result<Vec<RepoGroup>, St
     get_groups(&state.pool, &pid).await.map_err(|e| e.to_string())
 }
 
+#[tauri::command(rename = "git:status_get")]
+async fn git_status_get(path: String, include_ignored: bool, state: State<'_, AppState>) -> Result<StatusResult, String> {
+    get_repository_status(Some(&state.pool), &PathBuf::from(path), include_ignored)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:stage_file")]
+async fn git_stage_file(path: String, file_path: String) -> Result<(), String> {
+    stage_file(&PathBuf::from(path), &file_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:unstage_file")]
+async fn git_unstage_file(path: String, file_path: String) -> Result<(), String> {
+    unstage_file(&PathBuf::from(path), &file_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:stage_all")]
+async fn git_stage_all(path: String) -> Result<(), String> {
+    stage_all(&PathBuf::from(path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:unstage_all")]
+async fn git_unstage_all(path: String) -> Result<(), String> {
+    unstage_all(&PathBuf::from(path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:stage_patch")]
+async fn git_stage_patch(path: String, patch_str: String) -> Result<(), String> {
+    stage_patch(&PathBuf::from(path), &patch_str).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:discard_changes")]
+async fn git_discard_changes(path: String, file_path: Option<String>, discard_type: DiscardType) -> Result<(), String> {
+    discard_changes(&PathBuf::from(path), file_path.as_deref(), discard_type).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:diff_get_file")]
+async fn git_diff_get_file(path: String, file_path: String, staged: bool) -> Result<DiffView, String> {
+    get_file_diff(&PathBuf::from(path), &file_path, staged).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:diff_get_image")]
+async fn git_diff_get_image(path: String, file_path: String, staged: bool) -> Result<ImageDiff, String> {
+    get_image_diff(&PathBuf::from(path), &file_path, staged).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:commit_create")]
+async fn git_commit_create(path: String, req: CommitRequest, state: State<'_, AppState>) -> Result<String, String> {
+    create_commit(Some(&state.pool), &PathBuf::from(path), req)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:commit_history")]
+async fn git_commit_history(path: String, offset: usize, limit: usize, state: State<'_, AppState>) -> Result<Vec<CommitListItem>, String> {
+    get_commit_history(Some(&state.pool), &PathBuf::from(path), offset, limit).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:commit_details")]
+async fn git_commit_details(path: String, commit_id: String) -> Result<CommitDetail, String> {
+    get_commit_details(&PathBuf::from(path), &commit_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:hook_execute")]
+async fn git_hook_execute(path: String) -> Result<HookResult, String> {
+    execute_pre_commit_hook(&PathBuf::from(path)).await.map_err(|e| e.to_string())
+}
+
 async fn initialize_db() -> Pool<Sqlite> {
     let home = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")).unwrap_or_else(|_| ".".to_string());
     let tye_dir = PathBuf::from(home).join(".tye");
@@ -180,7 +249,20 @@ fn main() {
             git_repo_open,
             git_repo_check_health,
             git_group_create,
-            git_group_list
+            git_group_list,
+            git_status_get,
+            git_stage_file,
+            git_unstage_file,
+            git_stage_all,
+            git_unstage_all,
+            git_stage_patch,
+            git_discard_changes,
+            git_diff_get_file,
+            git_diff_get_image,
+            git_commit_create,
+            git_commit_history,
+            git_commit_details,
+            git_hook_execute
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

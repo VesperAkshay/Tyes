@@ -63,3 +63,122 @@ export interface GitInstallation {
   is_portable: boolean;
   is_valid: boolean;
 }
+
+export interface DiffStats {
+  insertions: number;
+  deletions: number;
+  files_changed: number;
+}
+
+export interface SubmoduleSummary {
+  name: string;
+  is_dirty: boolean;
+  commits_ahead: number;
+  commits_behind: number;
+}
+
+export interface FileStatus {
+  path: string;
+  old_path?: string;
+  status: string;
+  staged_status?: string;
+  unstaged_status?: string;
+  is_binary: boolean;
+  size_bytes: number;
+  diff_stats?: DiffStats;
+}
+
+export interface StatusResult {
+  staged: FileStatus[];
+  unstaged: FileStatus[];
+  untracked: FileStatus[];
+  ignored: FileStatus[];
+  conflicted: FileStatus[];
+  submodule_summary: SubmoduleSummary[];
+  total_staged_stats: DiffStats;
+  total_unstaged_stats: DiffStats;
+}
+
+export type DiscardType = "Unstaged" | "Staged" | "Untracked" | "AllUnstaged";
+
+export interface DiffLine {
+  old_lineno?: number;
+  new_lineno?: number;
+  origin: string;
+  content: string;
+}
+
+export interface DiffHunk {
+  header: string;
+  old_start: number;
+  old_lines: number;
+  new_start: number;
+  new_lines: number;
+  lines: DiffLine[];
+}
+
+export interface DiffView {
+  file_path: string;
+  is_staged: boolean;
+  is_binary: boolean;
+  hunks: DiffHunk[];
+  insertions: number;
+  deletions: number;
+}
+
+export interface ImageDiff {
+  file_path: string;
+  old_data?: string;
+  new_data?: string;
+  width: number;
+  height: number;
+  format: string;
+}
+
+export interface CommitRequest {
+  message: string;
+  body?: string;
+  amend: boolean;
+  signoff: boolean;
+  co_authors: string[];
+  commit_type: string;
+}
+
+export interface CommitListItem {
+  id: string;
+  short_id: string;
+  message_subject: string;
+  author_name: string;
+  timestamp: string;
+  tags: string[];
+  branches: string[];
+}
+
+export interface ChangedFile {
+  path: string;
+  status: string;
+  insertions: number;
+  deletions: number;
+}
+
+export interface CommitDetail {
+  id: string;
+  short_id: string;
+  message_subject: string;
+  message_body?: string;
+  author_name: string;
+  author_email: string;
+  timestamp: string;
+  parents: string[];
+  changed_files: ChangedFile[];
+  insertions: number;
+  deletions: number;
+}
+
+export interface HookResult {
+  hook_name: string;
+  exit_code: number;
+  stdout: string;
+  stderr: string;
+  succeeded: boolean;
+}

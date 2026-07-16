@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { AppShell } from '@tyes/design-system';
 import { Dashboard } from './components/Dashboard';
 import { ConfigTabs } from './components/Settings/ConfigTabs';
 import { SshKeyManager } from './components/Settings/SshKeyManager';
+import { WorkspaceView } from './components/WorkspaceView';
 import { InitRepoModal } from './components/Modals/InitRepoModal';
 import { CloneRepoModal } from './components/Modals/CloneRepoModal';
 import { AutoDiscoveryModal } from './components/Modals/AutoDiscoveryModal';
@@ -10,7 +12,8 @@ import { RiDashboardLine, RiSettings4Line, RiKey2Line, RiGitCommitLine, RiCheckD
 import tyegitLogo from './assets/logo.png';
 
 export default function App() {
-  const [activeView, setActiveView] = useState<'dashboard' | 'config' | 'ssh'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'config' | 'ssh' | 'workspace'>('dashboard');
+  const [activeRepoPath, setActiveRepoPath] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Modal toggles
@@ -28,8 +31,15 @@ export default function App() {
     }, 4500);
   };
 
-  const handleOpenRepo = (path: string) => {
+  const handleOpenRepo = async (path: string) => {
+    try {
+      await invoke('git:repo_open', { path });
+    } catch (err) {
+      console.error('Failed to update repository last_opened timestamp:', err);
+    }
     showToast(`Set active workspace context to ${path}`);
+    setActiveRepoPath(path);
+    setActiveView('workspace');
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -58,35 +68,35 @@ export default function App() {
                 onClick={() => setActiveView('dashboard')}
                 className={`flex items-center gap-3 px-3 py-2.5 font-bold transition-all ${
                   activeView === 'dashboard'
-                    ? 'bg-[var(--tye-lavender)] border-2 border-[var(--tye-ink)] shadow-[3px_3px_0px_0px_var(--tye-ink)] translate-x-1'
-                    : 'hover:bg-[var(--tye-cream)] border-2 border-transparent'
+                    ? 'bg-[var(--tye-ink)] text-white shadow-[3px_3px_0px_0px_var(--tye-lavender)] translate-x-1'
+                    : 'hover:bg-[var(--tye-cream)] hover:translate-x-1'
                 }`}
               >
-                <RiDashboardLine className="w-4 h-4" />
-                <span>Dashboard (`F-006`)</span>
+                <RiDashboardLine className="w-4 h-4 text-[var(--tye-lavender)]" />
+                <span>Repositories</span>
               </button>
 
               <button
                 onClick={() => setActiveView('config')}
                 className={`flex items-center gap-3 px-3 py-2.5 font-bold transition-all ${
                   activeView === 'config'
-                    ? 'bg-[var(--tye-lavender)] border-2 border-[var(--tye-ink)] shadow-[3px_3px_0px_0px_var(--tye-ink)] translate-x-1'
-                    : 'hover:bg-[var(--tye-cream)] border-2 border-transparent'
+                    ? 'bg-[var(--tye-ink)] text-white shadow-[3px_3px_0px_0px_var(--tye-lavender)] translate-x-1'
+                    : 'hover:bg-[var(--tye-cream)] hover:translate-x-1'
                 }`}
               >
-                <RiSettings4Line className="w-4 h-4" />
-                <span>Configuration</span>
+                <RiSettings4Line className="w-4 h-4 text-[var(--tye-lavender)]" />
+                <span>Configuration (`F-004`)</span>
               </button>
 
               <button
                 onClick={() => setActiveView('ssh')}
                 className={`flex items-center gap-3 px-3 py-2.5 font-bold transition-all ${
                   activeView === 'ssh'
-                    ? 'bg-[var(--tye-lavender)] border-2 border-[var(--tye-ink)] shadow-[3px_3px_0px_0px_var(--tye-ink)] translate-x-1'
-                    : 'hover:bg-[var(--tye-cream)] border-2 border-transparent'
+                    ? 'bg-[var(--tye-ink)] text-white shadow-[3px_3px_0px_0px_var(--tye-lavender)] translate-x-1'
+                    : 'hover:bg-[var(--tye-cream)] hover:translate-x-1'
                 }`}
               >
-                <RiKey2Line className="w-4 h-4" />
+                <RiKey2Line className="w-4 h-4 text-[var(--tye-lavender)]" />
                 <span>SSH Keys (`F-005`)</span>
               </button>
             </nav>
@@ -95,10 +105,10 @@ export default function App() {
           {/* Footer Info Box */}
           <div className="bg-[var(--tye-cream)] p-3 border-2 border-[var(--tye-ink)] font-mono text-xs shadow-[2px_2px_0px_0px_var(--tye-ink)]">
             <div className="font-bold flex items-center gap-1.5 mb-1 text-[var(--tye-ink)]">
-              <RiGitCommitLine className="w-3.5 h-3.5 text-[var(--tye-lavender)]" /> Part 2 Milestone 1
+              <RiGitCommitLine className="w-3.5 h-3.5 text-[var(--tye-lavender)]" /> Part 2 Milestone 2
             </div>
             <p className="opacity-70 text-[11px] leading-relaxed">
-              Repository & Configuration Engine fully compliant with Git Patch Notes & `tye-core-*`.
+              Status, Staging, Diffs & Commits — God-Mode Diff Editor Active.
             </p>
           </div>
         </aside>
@@ -116,6 +126,16 @@ export default function App() {
           )}
           {activeView === 'config' && <ConfigTabs />}
           {activeView === 'ssh' && <SshKeyManager />}
+          {activeView === 'workspace' && activeRepoPath && (
+            <WorkspaceView
+              repoPath={activeRepoPath}
+              onClose={() => {
+                setActiveView('dashboard');
+                setActiveRepoPath(null);
+                setRefreshTrigger(prev => prev + 1);
+              }}
+            />
+          )}
 
           {/* Sleek Non-Blocking Notification Toast Banner */}
           {toastMessage && (

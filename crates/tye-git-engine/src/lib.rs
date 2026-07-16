@@ -7,6 +7,10 @@ pub mod repository;
 pub mod discovery;
 pub mod dashboard;
 pub mod groups;
+pub mod status;
+pub mod staging;
+pub mod diff;
+pub mod commit;
 
 pub use error::GitEngineError;
 pub use installation::{GitInstallation, detect_git, set_custom_git_path, parse_git_version, check_min_version};
@@ -16,3 +20,7 @@ pub use repository::{RepositoryHandle, CloneOptions, RepoHealth, open_repository
 pub use discovery::scan_directories;
 pub use dashboard::{RepoCard, get_dashboard_cards, pin_repository};
 pub use groups::{RepoGroup, create_group, add_to_group, remove_from_group, get_groups, bulk_fetch_group};
+pub use status::{FileStatus, StatusResult, DiffStats, SubmoduleSummary, get_repository_status};
+pub use staging::{DiscardType, LineSelection, stage_file, unstage_file, stage_all, unstage_all, stage_patch, discard_changes};
+pub use diff::{DiffLine, DiffHunk, DiffView, ImageDiff, get_file_diff, get_image_diff};
+pub use commit::{CommitRequest, CommitListItem, ChangedFile, CommitDetail, HookResult, create_commit, get_commit_history, get_commit_details, execute_pre_commit_hook};
