@@ -4630,6 +4630,7 @@ dependencies = [
  "git2",
  "hex",
  "notify",
+ "regex",
  "serde",
  "serde_json",
  "sha2",

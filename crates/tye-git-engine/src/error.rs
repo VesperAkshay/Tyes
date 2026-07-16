@@ -37,4 +37,16 @@ pub enum GitEngineError {
 
     #[error("Vault error: {0}")]
     VaultError(#[from] tye_core_vault::VaultError),
+
+    #[error("Working tree is dirty: {0}")]
+    DirtyWorktree(String),
+
+    #[error("Branch operation error: {0}")]
+    BranchError(String),
+
+    #[error("Remote operation error: {0}")]
+    RemoteError(String),
+
+    #[error("Sync operation error: {0}")]
+    SyncError(String),
 }

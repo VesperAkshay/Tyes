@@ -11,6 +11,10 @@ pub mod status;
 pub mod staging;
 pub mod diff;
 pub mod commit;
+pub mod branch;
+pub mod graph;
+pub mod history;
+pub mod remote;
 
 pub use error::GitEngineError;
 pub use installation::{GitInstallation, detect_git, set_custom_git_path, parse_git_version, check_min_version};
@@ -24,3 +28,7 @@ pub use status::{FileStatus, StatusResult, DiffStats, SubmoduleSummary, get_repo
 pub use staging::{DiscardType, LineSelection, stage_file, unstage_file, stage_all, unstage_all, stage_patch, discard_changes};
 pub use diff::{DiffLine, DiffHunk, DiffView, ImageDiff, get_file_diff, get_image_diff};
 pub use commit::{CommitRequest, CommitListItem, ChangedFile, CommitDetail, HookResult, create_commit, get_commit_history, get_commit_details, execute_pre_commit_hook};
+pub use branch::{BranchItem, BranchList, CheckoutStrategy, CheckoutResult, get_branches, create_branch, delete_branch, rename_branch, set_branch_upstream as branch_set_upstream, checkout_branch};
+pub use graph::{GraphNode, GraphEdge, GraphView, get_commit_graph};
+pub use history::{HistorySearchType, HistorySearchQuery, search_history};
+pub use remote::{RemoteItem, ConnectionTestResult, FetchResult, PullStrategy, PullResult, PushResult, get_remotes, add_remote, remove_remote, edit_remote, prune_remote, test_remote_connection, fetch_remote, pull_branch, push_branch};

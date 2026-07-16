@@ -25,6 +25,7 @@ hex = "0.4"
 base64 = "0.22"
 notify = "6"
 trash = "3"
+regex = "1"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full", "test-util"] }

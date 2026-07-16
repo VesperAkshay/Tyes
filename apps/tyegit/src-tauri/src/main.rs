@@ -207,6 +207,93 @@ async fn git_hook_execute(path: String) -> Result<HookResult, String> {
     execute_pre_commit_hook(&PathBuf::from(path)).await.map_err(|e| e.to_string())
 }
 
+// --- Milestone 3 Handlers ---
+
+#[tauri::command(rename = "git:get_branches")]
+async fn git_get_branches(repo_path: String) -> Result<BranchList, String> {
+    get_branches(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:branch_create")]
+async fn git_branch_create(repo_path: String, name: String, target_commit: Option<String>) -> Result<BranchItem, String> {
+    create_branch(&PathBuf::from(repo_path), &name, target_commit.as_deref()).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:branch_delete")]
+async fn git_branch_delete(repo_path: String, name: String, force: bool) -> Result<(), String> {
+    delete_branch(&PathBuf::from(repo_path), &name, force).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:branch_rename")]
+async fn git_branch_rename(repo_path: String, old_name: String, new_name: String) -> Result<(), String> {
+    rename_branch(&PathBuf::from(repo_path), &old_name, &new_name).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:branch_set_upstream")]
+async fn git_branch_set_upstream(repo_path: String, branch_name: String, upstream_name: Option<String>) -> Result<(), String> {
+    branch_set_upstream(&PathBuf::from(repo_path), &branch_name, upstream_name.as_deref()).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:branch_checkout")]
+async fn git_branch_checkout(repo_path: String, name: String, strategy: CheckoutStrategy) -> Result<CheckoutResult, String> {
+    checkout_branch(&PathBuf::from(repo_path), &name, strategy).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:get_commit_graph")]
+async fn git_get_commit_graph(repo_path: String, limit: Option<usize>, branch_filter: Option<String>, first_parent_only: Option<bool>) -> Result<GraphView, String> {
+    get_commit_graph(&PathBuf::from(repo_path), limit.unwrap_or(2000), branch_filter.as_deref(), first_parent_only.unwrap_or(false)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:search_history")]
+async fn git_search_history(repo_path: String, query: HistorySearchQuery) -> Result<Vec<GraphNode>, String> {
+    search_history(&PathBuf::from(repo_path), query).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:get_remotes")]
+async fn git_get_remotes(repo_path: String) -> Result<Vec<RemoteItem>, String> {
+    get_remotes(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:remote_add")]
+async fn git_remote_add(repo_path: String, name: String, url: String) -> Result<RemoteItem, String> {
+    add_remote(&PathBuf::from(repo_path), &name, &url).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:remote_remove")]
+async fn git_remote_remove(repo_path: String, name: String) -> Result<(), String> {
+    remove_remote(&PathBuf::from(repo_path), &name).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:remote_edit")]
+async fn git_remote_edit(repo_path: String, name: String, new_url: String) -> Result<RemoteItem, String> {
+    edit_remote(&PathBuf::from(repo_path), &name, &new_url).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:remote_prune")]
+async fn git_remote_prune(repo_path: String, name: String) -> Result<(), String> {
+    prune_remote(&PathBuf::from(repo_path), &name).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:remote_test")]
+async fn git_remote_test(repo_path: String, name: String) -> Result<ConnectionTestResult, String> {
+    test_remote_connection(&PathBuf::from(repo_path), &name).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:remote_fetch")]
+async fn git_remote_fetch(repo_path: String, remote_name: Option<String>, prune: Option<bool>, tags: Option<bool>) -> Result<FetchResult, String> {
+    fetch_remote(&PathBuf::from(repo_path), remote_name.as_deref(), prune.unwrap_or(false), tags.unwrap_or(false)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:branch_pull")]
+async fn git_branch_pull(repo_path: String, remote_name: String, branch_name: String, strategy: PullStrategy) -> Result<PullResult, String> {
+    pull_branch(&PathBuf::from(repo_path), &remote_name, &branch_name, strategy).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:branch_push")]
+async fn git_branch_push(repo_path: String, remote_name: String, branch_name: String, force: Option<bool>, force_lease: Option<bool>, set_upstream: Option<bool>) -> Result<PushResult, String> {
+    push_branch(&PathBuf::from(repo_path), &remote_name, &branch_name, force.unwrap_or(false), force_lease.unwrap_or(false), set_upstream.unwrap_or(false)).map_err(|e| e.to_string())
+}
+
 async fn initialize_db() -> Pool<Sqlite> {
     let home = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")).unwrap_or_else(|_| ".".to_string());
     let tye_dir = PathBuf::from(home).join(".tye");
@@ -262,7 +349,24 @@ fn main() {
             git_commit_create,
             git_commit_history,
             git_commit_details,
-            git_hook_execute
+            git_hook_execute,
+            git_get_branches,
+            git_branch_create,
+            git_branch_delete,
+            git_branch_rename,
+            git_branch_set_upstream,
+            git_branch_checkout,
+            git_get_commit_graph,
+            git_search_history,
+            git_get_remotes,
+            git_remote_add,
+            git_remote_remove,
+            git_remote_edit,
+            git_remote_prune,
+            git_remote_test,
+            git_remote_fetch,
+            git_branch_pull,
+            git_branch_push
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

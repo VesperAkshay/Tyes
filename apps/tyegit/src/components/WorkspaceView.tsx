@@ -5,6 +5,9 @@ import { GodModeDiffEditor } from './Diff/GodModeDiffEditor';
 import { CommitPanel } from './Commit/CommitPanel';
 import { CommitHistoryView } from './Commit/CommitHistoryView';
 import { CommitDetailModal } from './Commit/CommitDetailModal';
+import { CommitGraphView } from './Graph/CommitGraphView';
+import { BranchManager } from './Branch/BranchManager';
+import { RemoteManagerModal } from './Remote/RemoteManagerModal';
 import { StatusResult } from '../types';
 import {
   RiArrowLeftLine,
@@ -12,6 +15,9 @@ import {
   RiHistoryLine,
   RiRefreshLine,
   RiGitRepositoryLine,
+  RiGitBranchLine,
+  RiGitRepositoryCommitsLine,
+  RiCloudLine,
 } from 'react-icons/ri';
 
 interface WorkspaceViewProps {
@@ -20,7 +26,8 @@ interface WorkspaceViewProps {
 }
 
 export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'changes' | 'history'>('changes');
+  const [activeTab, setActiveTab] = useState<'changes' | 'history' | 'graph' | 'branches'>('changes');
+  const [showRemoteModal, setShowRemoteModal] = useState<boolean>(false);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [isStaged, setIsStaged] = useState<boolean>(false);
   const [stagedCount, setStagedCount] = useState<number>(0);
@@ -77,12 +84,12 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
           </div>
         </div>
 
-        {/* Tab Selector (Changes vs History) */}
-        <div className="flex items-center gap-2">
+        {/* Tab Selector (Changes, Graph, Branches, History) */}
+        <div className="flex items-center gap-2.5">
           <div className="flex bg-[var(--tye-cream)] p-0.5 border border-[var(--tye-ink)] rounded font-mono text-xs">
             <button
               onClick={() => setActiveTab('changes')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded transition-colors ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
                 activeTab === 'changes'
                   ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
                   : 'hover:bg-white/60'
@@ -96,8 +103,28 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
               )}
             </button>
             <button
+              onClick={() => setActiveTab('graph')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
+                activeTab === 'graph'
+                  ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
+                  : 'hover:bg-white/60'
+              }`}
+            >
+              <RiGitRepositoryCommitsLine /> Graph (`F-028`)
+            </button>
+            <button
+              onClick={() => setActiveTab('branches')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
+                activeTab === 'branches'
+                  ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
+                  : 'hover:bg-white/60'
+              }`}
+            >
+              <RiGitBranchLine /> Branches (`F-026`)
+            </button>
+            <button
               onClick={() => setActiveTab('history')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded transition-colors ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
                 activeTab === 'history'
                   ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
                   : 'hover:bg-white/60'
@@ -106,6 +133,14 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
               <RiHistoryLine /> History (`F-024`)
             </button>
           </div>
+
+          <button
+            onClick={() => setShowRemoteModal(true)}
+            className="px-3 py-1 bg-[var(--tye-lavender)] text-white hover:bg-[var(--tye-ink)] border border-[var(--tye-ink)] shadow-[2px_2px_0px_0px_var(--tye-ink)] text-xs font-mono font-bold flex items-center gap-1.5 active:translate-x-[1px] active:translate-y-[1px] transition-all"
+          >
+            <RiCloudLine className="w-3.5 h-3.5" />
+            <span>Remotes (`F-030`)</span>
+          </button>
 
           <button
             onClick={handleStatusChange}
@@ -119,7 +154,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
 
       {/* Main Workspace Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {activeTab === 'changes' ? (
+        {activeTab === 'changes' && (
           <>
             {/* Left Status Engine Sidebar (`w-80`) */}
             <div className="w-80 flex-shrink-0 h-full overflow-hidden">
@@ -150,8 +185,27 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
               />
             </div>
           </>
-        ) : (
-          /* Commit History Engine View (`F-024`) */
+        )}
+
+        {activeTab === 'graph' && (
+          <div className="flex-1 h-full overflow-hidden">
+            <CommitGraphView
+              repoPath={repoPath}
+              onSelectCommit={(cid) => setSelectedCommitId(cid)}
+            />
+          </div>
+        )}
+
+        {activeTab === 'branches' && (
+          <div className="flex-1 h-full overflow-hidden">
+            <BranchManager
+              repoPath={repoPath}
+              onBranchChanged={handleStatusChange}
+            />
+          </div>
+        )}
+
+        {activeTab === 'history' && (
           <div className="flex-1 h-full overflow-hidden">
             <CommitHistoryView
               repoPath={repoPath}
@@ -169,6 +223,14 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
         onClose={() => setSelectedCommitId(null)}
         onSelectCommit={(cid) => setSelectedCommitId(cid)}
       />
+
+      {/* Remote Manager & Sync Modal (`F-030` - `F-033`) */}
+      {showRemoteModal && (
+        <RemoteManagerModal
+          repoPath={repoPath}
+          onClose={() => setShowRemoteModal(false)}
+        />
+      )}
     </div>
   );
 };
