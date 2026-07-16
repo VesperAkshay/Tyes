@@ -160,6 +160,16 @@ async fn git_unstage_file(path: String, file_path: String) -> Result<(), String>
     unstage_file(&PathBuf::from(path), &file_path).map_err(|e| e.to_string())
 }
 
+#[tauri::command(rename = "git:ignore_file")]
+async fn git_ignore_file(path: String, file_path: String) -> Result<(), String> {
+    ignore_file(&PathBuf::from(path), &file_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:unignore_file")]
+async fn git_unignore_file(path: String, file_path: String) -> Result<(), String> {
+    unignore_file(&PathBuf::from(path), &file_path).map_err(|e| e.to_string())
+}
+
 #[tauri::command(rename = "git:stage_all")]
 async fn git_stage_all(path: String) -> Result<(), String> {
     stage_all(&PathBuf::from(path)).map_err(|e| e.to_string())
@@ -487,6 +497,8 @@ fn main() {
             git_status_get,
             git_stage_file,
             git_unstage_file,
+            git_ignore_file,
+            git_unignore_file,
             git_stage_all,
             git_unstage_all,
             git_stage_patch,

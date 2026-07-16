@@ -9,6 +9,7 @@ import {
   RiTimeLine,
   RiLinksLine,
 } from 'react-icons/ri';
+import { MaterialFileIcon } from '../UI/MaterialFileIcon';
 
 interface CommitDetailModalProps {
   repoPath: string;
@@ -175,7 +176,10 @@ export const CommitDetailModal: React.FC<CommitDetailModalProps> = ({
                                 {cf.status}
                               </span>
                             </td>
-                            <td className="p-2 font-mono truncate max-w-md">{cf.path}</td>
+                            <td className="p-2 font-mono truncate max-w-md flex items-center gap-2">
+                              <MaterialFileIcon filename={cf.path} className="w-4 h-4 opacity-90" />
+                              {cf.path}
+                            </td>
                             <td className="p-2 text-right font-mono">
                               <span className="text-green-700 font-bold">+{cf.insertions}</span>{' '}
                               <span className="text-red-700 font-bold">-{cf.deletions}</span>

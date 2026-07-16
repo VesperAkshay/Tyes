@@ -23,6 +23,7 @@ pub mod cherrypick;
 pub mod revert;
 pub mod reset;
 pub mod checkpoint;
+pub mod ignore;
 
 pub use error::GitEngineError;
 pub use installation::{GitInstallation, detect_git, set_custom_git_path, parse_git_version, check_min_version};
@@ -48,3 +49,4 @@ pub use cherrypick::{CherryPickResult, execute_cherrypick};
 pub use revert::{RevertResult, execute_revert};
 pub use reset::{ResetMode, ResetResult, execute_reset};
 pub use checkpoint::{ConflictRisk, CheckpointItem, RollbackPreview, RollbackResult, RecoveryType, RecoveryItem, DeleteCheckpointResult, capture_pre_op, capture_manual_pin, toggle_pin_status, capture_external_cli_op, install_terminal_hooks, preview_rollback_impact, rollback_checkpoint, list_checkpoints, prune_old_checkpoints, delete_checkpoint, get_recovery_center_items};
+pub use ignore::{ignore_file, unignore_file};
