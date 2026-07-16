@@ -124,7 +124,7 @@ export default function App() {
               refreshTrigger={refreshTrigger}
             />
           )}
-          {activeView === 'config' && <ConfigTabs />}
+          {activeView === 'config' && <ConfigTabs activeRepoPath={activeRepoPath} />}
           {activeView === 'ssh' && <SshKeyManager />}
           {activeView === 'workspace' && activeRepoPath && (
             <WorkspaceView

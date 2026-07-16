@@ -1,15 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { GitConfigEntry, GitInstallation } from '../../types';
+import { GitConfigEntry, GitInstallation, RepoCard } from '../../types';
 import { RiSettings4Line, RiSave3Line, RiRefreshLine, RiCheckDoubleLine, RiErrorWarningLine, RiShieldCheckLine, RiTerminalBoxLine } from 'react-icons/ri';
 
-export const ConfigTabs: React.FC = () => {
+interface ConfigTabsProps {
+  activeRepoPath?: string | null;
+}
+
+export const ConfigTabs: React.FC<ConfigTabsProps> = ({ activeRepoPath }) => {
   const [activeTab, setActiveTab] = useState<'system' | 'global' | 'local' | 'install'>('global');
   const [installation, setInstallation] = useState<GitInstallation | null>(null);
   const [systemEntries, setSystemEntries] = useState<GitConfigEntry[]>([]);
   const [globalEntries, setGlobalEntries] = useState<GitConfigEntry[]>([]);
-  const [localPath, setLocalPath] = useState('');
+  const [localPath, setLocalPath] = useState(activeRepoPath || '');
   const [localEntries, setLocalEntries] = useState<GitConfigEntry[]>([]);
+  const [managedRepos, setManagedRepos] = useState<RepoCard[]>([]);
+  const [newLocalKey, setNewLocalKey] = useState('');
+  const [newLocalValue, setNewLocalValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [customGitPath, setCustomGitPath] = useState('');
   const [statusMsg, setStatusMsg] = useState<{ text: string; isError?: boolean } | null>(null);
@@ -63,14 +70,28 @@ export const ConfigTabs: React.FC = () => {
     }
   };
 
-  const fetchLocal = async () => {
-    if (!localPath) return;
+  const fetchManagedRepos = async () => {
+    try {
+      const data: RepoCard[] = await invoke('git:dashboard_get_repos');
+      setManagedRepos(data);
+      if (activeRepoPath && !localPath) {
+        setLocalPath(activeRepoPath);
+      } else if (!localPath && data.length > 0) {
+        setLocalPath(data[0].path);
+      }
+    } catch (err: any) {
+      console.error('Failed to load managed repos:', err);
+    }
+  };
+
+  const fetchLocal = async (pathToLoad = localPath) => {
+    if (!pathToLoad) return;
     try {
       setLoading(true);
-      const data: GitConfigEntry[] = await invoke('git:config_get_local', { path: localPath });
+      const data: GitConfigEntry[] = await invoke('git:config_get_local', { path: pathToLoad });
       setLocalEntries(data);
     } catch (err: any) {
-      showStatus(`Failed to read local config for ${localPath}: ${err}`, true);
+      showStatus(`Failed to read local config for ${pathToLoad}: ${err}`, true);
     } finally {
       setLoading(false);
     }
@@ -80,7 +101,28 @@ export const ConfigTabs: React.FC = () => {
     fetchInstallation();
     fetchGlobal();
     fetchSystem();
-  }, []);
+    fetchManagedRepos();
+  }, [activeRepoPath]);
+
+  useEffect(() => {
+    if (activeTab === 'local' && localPath) {
+      fetchLocal(localPath);
+    }
+  }, [activeTab, localPath]);
+
+  const handleSetLocalEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!localPath || !newLocalKey || !newLocalValue) return;
+    try {
+      await invoke('git:config_set_local', { path: localPath, key: newLocalKey, value: newLocalValue });
+      setNewLocalKey('');
+      setNewLocalValue('');
+      fetchLocal(localPath);
+      showStatus(`Saved local override (${newLocalKey} = ${newLocalValue}) to ${localPath}/.git/config`);
+    } catch (err: any) {
+      showStatus(`Error saving local entry: ${err}`, true);
+    }
+  };
 
   const handleSaveGlobalIdentity = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -302,48 +344,93 @@ export const ConfigTabs: React.FC = () => {
       {activeTab === 'local' && (
         <div className="flex flex-col gap-6">
           <div className="tye-card p-5 bg-white">
-            <h3 className="font-bold text-base mb-2">Inspect Repository Local Config (`.git/config`)</h3>
+            <h3 className="font-bold text-base mb-2 font-mono">Inspect & Modify Repository Local Config (`.git/config`)</h3>
             <p className="text-xs font-mono opacity-70 mb-4">
-              Enter the absolute path to a local Git repository folder to inspect and modify its specific configuration (`F-004`).
+              Select any managed repository from your workspace to view and edit its local `.git/config` settings (`F-004`).
             </p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="f:\Tyes or C:\Projects\MyApp"
-                value={localPath}
-                onChange={e => setLocalPath(e.target.value)}
-                className="flex-1 px-3 py-2 border-2 border-[var(--tye-ink)] font-mono text-sm"
-              />
-              <button onClick={fetchLocal} className="tye-btn tye-btn-primary text-sm">
-                Load Config
+            <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+              <div className="flex-1 relative">
+                <select
+                  value={localPath}
+                  onChange={(e) => setLocalPath(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-[var(--tye-cream)] border-2 border-[var(--tye-ink)] font-mono text-sm shadow-[3px_3px_0px_0px_var(--tye-ink)] focus:outline-none cursor-pointer"
+                >
+                  <option value="" disabled>-- Select a Managed Repository --</option>
+                  {managedRepos.map((repo) => (
+                    <option key={repo.id} value={repo.path}>
+                      {repo.name} ({repo.path})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={() => fetchLocal(localPath)}
+                disabled={!localPath || loading}
+                className="tye-btn tye-btn-primary text-sm flex items-center justify-center gap-1.5 whitespace-nowrap"
+              >
+                <RiRefreshLine className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span>Reload Config</span>
               </button>
             </div>
           </div>
 
           {localEntries.length > 0 && (
-            <div className="tye-card p-5 bg-white">
-              <h3 className="font-bold text-base mb-3 font-mono">Local Repository Config ({localEntries.length})</h3>
-              <div className="overflow-x-auto border border-[var(--tye-ink)]">
-                <table className="w-full text-left font-mono text-xs border-collapse">
-                  <thead className="bg-[var(--tye-cream)] border-b border-[var(--tye-ink)]">
-                    <tr>
-                      <th className="p-2.5 border-r border-[var(--tye-ink)]">Key</th>
-                      <th className="p-2.5 border-r border-[var(--tye-ink)]">Level</th>
-                      <th className="p-2.5">Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {localEntries.map((e, idx) => (
-                      <tr key={idx} className="border-b border-[var(--tye-ink)]/20">
-                        <td className="p-2.5 border-r border-[var(--tye-ink)]/20 font-bold">{e.key}</td>
-                        <td className="p-2.5 border-r border-[var(--tye-ink)]/20">{e.level}</td>
-                        <td className="p-2.5">{e.value}</td>
+            <>
+              <div className="tye-card p-5 bg-white">
+                <h3 className="font-bold text-base mb-3 font-mono">Local Repository Config ({localEntries.length})</h3>
+                <div className="overflow-x-auto max-h-80 overflow-y-auto border border-[var(--tye-ink)]">
+                  <table className="w-full text-left font-mono text-xs border-collapse">
+                    <thead className="bg-[var(--tye-cream)] border-b border-[var(--tye-ink)] sticky top-0">
+                      <tr>
+                        <th className="p-2.5 border-r border-[var(--tye-ink)]">Key</th>
+                        <th className="p-2.5 border-r border-[var(--tye-ink)]">Level</th>
+                        <th className="p-2.5">Value</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {localEntries.map((e, idx) => (
+                        <tr key={idx} className="border-b border-[var(--tye-ink)]/20">
+                          <td className="p-2.5 border-r border-[var(--tye-ink)]/20 font-bold text-[var(--tye-lavender)]">{e.key}</td>
+                          <td className="p-2.5 border-r border-[var(--tye-ink)]/20 uppercase text-[10px]">{e.level}</td>
+                          <td className="p-2.5 break-all">{e.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+
+              {/* Quick Set Local Setting */}
+              <div className="tye-card p-5 bg-white border-2 border-[var(--tye-ink)] shadow-[4px_4px_0px_0px_var(--tye-ink)]">
+                <h3 className="font-bold text-base mb-2 font-mono text-[var(--tye-ink)]">
+                  Add / Override Local Setting (`.git/config`)
+                </h3>
+                <p className="text-xs font-mono opacity-70 mb-4">
+                  Set a repository-specific setting (e.g. override `user.name` or `user.email` just for this repository).
+                </p>
+                <form onSubmit={handleSetLocalEntry} className="flex flex-col md:flex-row gap-3">
+                  <input
+                    type="text"
+                    placeholder="e.g. user.name or core.autocrlf"
+                    value={newLocalKey}
+                    onChange={e => setNewLocalKey(e.target.value)}
+                    className="px-3 py-2 border-2 border-[var(--tye-ink)] font-mono text-xs flex-1 bg-[var(--tye-cream)]"
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="Value (e.g. Tye Developer or true)"
+                    value={newLocalValue}
+                    onChange={e => setNewLocalValue(e.target.value)}
+                    className="px-3 py-2 border-2 border-[var(--tye-ink)] font-mono text-xs flex-1 bg-[var(--tye-cream)]"
+                    required
+                  />
+                  <button type="submit" className="tye-btn tye-btn-primary text-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <RiSave3Line className="w-4 h-4" /> Save Override
+                  </button>
+                </form>
+              </div>
+            </>
           )}
         </div>
       )}
