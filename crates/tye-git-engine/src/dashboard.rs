@@ -142,3 +142,15 @@ pub async fn pin_repository(
         .await?;
     Ok(())
 }
+
+/// Remove a repository from the Tyegit dashboard index (does NOT delete files on disk).
+pub async fn remove_repository(
+    pool: &Pool<Sqlite>,
+    repo_id: &str,
+) -> Result<(), GitEngineError> {
+    sqlx::query("DELETE FROM git_repositories WHERE id = ?")
+        .bind(repo_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}

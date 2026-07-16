@@ -30,7 +30,7 @@ pub use config::{GitConfigLevel, GitConfigEntry, read_system_config, read_global
 pub use ssh::{SshKey, SshConfigHost, list_ssh_keys, read_ssh_config, generate_ed25519_key, compute_fingerprint};
 pub use repository::{RepositoryHandle, CloneOptions, RepoHealth, open_repository, init_repository, clone_repository, check_repository_health};
 pub use discovery::scan_directories;
-pub use dashboard::{RepoCard, get_dashboard_cards, pin_repository};
+pub use dashboard::{RepoCard, get_dashboard_cards, pin_repository, remove_repository};
 pub use groups::{RepoGroup, create_group, add_to_group, remove_from_group, get_groups, bulk_fetch_group};
 pub use status::{FileStatus, StatusResult, DiffStats, SubmoduleSummary, get_repository_status};
 pub use staging::{DiscardType, LineSelection, stage_file, unstage_file, stage_all, unstage_all, stage_patch, discard_changes};

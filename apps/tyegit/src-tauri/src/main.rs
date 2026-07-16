@@ -72,6 +72,11 @@ async fn git_dashboard_pin_repo(repo_id: String, pinned: bool, state: State<'_, 
     pin_repository(&state.pool, &repo_id, pinned).await.map_err(|e| e.to_string())
 }
 
+#[tauri::command(rename = "git:dashboard_remove_repo")]
+async fn git_dashboard_remove_repo(repo_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    remove_repository(&state.pool, &repo_id).await.map_err(|e| e.to_string())
+}
+
 #[tauri::command(rename = "git:discovery_scan")]
 async fn git_discovery_scan(root_dirs: Vec<String>, exclude_patterns: Vec<String>, state: State<'_, AppState>) -> Result<Vec<RepositoryHandle>, String> {
     let pid = state.current_project_id.lock().await.clone();
@@ -471,6 +476,7 @@ fn main() {
             git_ssh_generate_key,
             git_dashboard_get_repos,
             git_dashboard_pin_repo,
+            git_dashboard_remove_repo,
             git_discovery_scan,
             git_repo_init,
             git_repo_clone,
