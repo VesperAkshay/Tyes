@@ -1,0 +1,29 @@
+[package]
+name = "tye-git-engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tye-core-models.workspace = true
+tye-core-storage.workspace = true
+tye-core-vault.workspace = true
+tye-core-events.workspace = true
+
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+sqlx.workspace = true
+
+git2 = "0.19"
+which = "6.0"
+walkdir = "2.5"
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full", "test-util"] }
+tempfile = "3.12"

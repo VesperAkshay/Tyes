@@ -61,7 +61,7 @@ export const InitRepoModal: React.FC<InitRepoModalProps> = ({ onClose, onSuccess
           </div>
         )}
 
-        <form onSubmit={handleInit} className="flex flex-col gap-4">
+        <form onSubmit={handleInit} className="flex flex-col gap-5 p-6 overflow-y-auto">
           <div>
             <label className="block text-xs font-mono font-bold uppercase mb-1">
               Absolute Directory Path
@@ -74,26 +74,31 @@ export const InitRepoModal: React.FC<InitRepoModalProps> = ({ onClose, onSuccess
               required
               className="w-full px-3 py-2 bg-white border-2 border-[var(--tye-ink)] font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[var(--tye-lavender)] shadow-[2px_2px_0px_0px_var(--tye-ink)]"
             />
-            <p className="text-xs font-mono opacity-60 mt-1">
+            <p className="text-xs font-mono opacity-60 mt-1.5">
               Directory will be created if it does not already exist.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 p-3 bg-white border border-[var(--tye-ink)]">
-            <input
-              type="text"
-              value={readmeTitle}
-              onChange={e => setReadmeTitle(e.target.value)}
-              placeholder="README Title (`F-008`)"
-              className="w-1/2 px-2 py-1 border border-[var(--tye-ink)] text-xs font-mono"
-            />
-            <input
-              type="text"
-              value={readmeDescription}
-              onChange={e => setReadmeDescription(e.target.value)}
-              placeholder="Description..."
-              className="w-1/2 px-2 py-1 border border-[var(--tye-ink)] text-xs font-mono"
-            />
+          <div className="flex flex-col gap-2 p-3.5 bg-[var(--tye-cream)]/40 border-2 border-[var(--tye-ink)] shadow-[2px_2px_0px_0px_var(--tye-ink)]">
+            <span className="text-xs font-mono font-bold uppercase flex items-center gap-1.5 text-[var(--tye-ink)]">
+              <RiFileTextLine className="w-4 h-4 text-[var(--tye-lavender)]" /> README Configuration (`F-008`)
+            </span>
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                value={readmeTitle}
+                onChange={e => setReadmeTitle(e.target.value)}
+                placeholder="README Title"
+                className="w-1/2 px-3 py-1.5 bg-white border-2 border-[var(--tye-ink)] text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[var(--tye-lavender)]"
+              />
+              <input
+                type="text"
+                value={readmeDescription}
+                onChange={e => setReadmeDescription(e.target.value)}
+                placeholder="Description..."
+                className="w-1/2 px-3 py-1.5 bg-white border-2 border-[var(--tye-ink)] text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[var(--tye-lavender)]"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
