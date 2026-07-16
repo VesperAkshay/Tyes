@@ -44,7 +44,7 @@ export default function App() {
   };
 
   return (
-    <AppShell modules={["git"]}>
+    <AppShell modules={["git"]} logoUrl={tyegitLogo} appName="Tyegit">
       <div className="flex h-full w-full overflow-hidden relative">
         {/* Tyegit Sidebar Panel */}
         <aside className="w-64 bg-white border-r-2 border-[var(--tye-ink)] flex flex-col justify-between p-4 flex-shrink-0">

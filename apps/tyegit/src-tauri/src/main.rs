@@ -294,6 +294,96 @@ async fn git_branch_push(repo_path: String, remote_name: String, branch_name: St
     push_branch(&PathBuf::from(repo_path), &remote_name, &branch_name, force.unwrap_or(false), force_lease.unwrap_or(false), set_upstream.unwrap_or(false)).map_err(|e| e.to_string())
 }
 
+#[tauri::command(rename = "git:conflict_list")]
+async fn git_conflict_list(repo_path: String) -> Result<Vec<ConflictFileItem>, String> {
+    get_conflicted_files(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:conflict_get_panes")]
+async fn git_conflict_get_panes(repo_path: String, file_path: String) -> Result<ThreeWayPanes, String> {
+    get_three_way_content(&PathBuf::from(repo_path), &file_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:conflict_resolve")]
+async fn git_conflict_resolve(repo_path: String, file_path: String, resolved_content: String) -> Result<(), String> {
+    resolve_conflict_file(&PathBuf::from(repo_path), &file_path, &resolved_content).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:conflict_continue")]
+async fn git_conflict_continue(repo_path: String) -> Result<String, String> {
+    continue_merge_or_rebase(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:conflict_abort")]
+async fn git_conflict_abort(repo_path: String) -> Result<(), String> {
+    abort_merge_or_rebase(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:stash_list")]
+async fn git_stash_list(repo_path: String) -> Result<Vec<StashItem>, String> {
+    list_stashes(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:stash_save")]
+async fn git_stash_save(repo_path: String, message: Option<String>, include_untracked: Option<bool>, keep_index: Option<bool>) -> Result<StashItem, String> {
+    save_stash(&PathBuf::from(repo_path), message.as_deref(), include_untracked.unwrap_or(false), keep_index.unwrap_or(false)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:stash_apply")]
+async fn git_stash_apply(repo_path: String, index: usize) -> Result<String, String> {
+    apply_stash(&PathBuf::from(repo_path), index).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:stash_pop")]
+async fn git_stash_pop(repo_path: String, index: usize) -> Result<String, String> {
+    pop_stash(&PathBuf::from(repo_path), index).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:stash_drop")]
+async fn git_stash_drop(repo_path: String, index: usize) -> Result<(), String> {
+    drop_stash(&PathBuf::from(repo_path), index).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:branch_merge_analyze")]
+async fn git_branch_merge_analyze(repo_path: String, source_branch: String) -> Result<MergeAnalysisResult, String> {
+    analyze_merge(&PathBuf::from(repo_path), &source_branch).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:branch_merge")]
+async fn git_branch_merge(repo_path: String, source_branch: String, strategy: MergeStrategy) -> Result<MergeExecuteResult, String> {
+    execute_merge(&PathBuf::from(repo_path), &source_branch, strategy).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:branch_rebase_start")]
+async fn git_branch_rebase_start(repo_path: String, upstream_ref: String, plan: Vec<RebasePlanItem>) -> Result<RebaseStatus, String> {
+    start_interactive_rebase(&PathBuf::from(repo_path), &upstream_ref, plan).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:branch_rebase_continue")]
+async fn git_branch_rebase_continue(repo_path: String) -> Result<RebaseStatus, String> {
+    continue_rebase(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:branch_rebase_abort")]
+async fn git_branch_rebase_abort(repo_path: String) -> Result<(), String> {
+    abort_rebase(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:commit_cherrypick")]
+async fn git_commit_cherrypick(repo_path: String, commit_oids: Vec<String>, no_commit: Option<bool>) -> Result<CherryPickResult, String> {
+    execute_cherrypick(&PathBuf::from(repo_path), commit_oids, no_commit.unwrap_or(false)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:commit_revert")]
+async fn git_commit_revert(repo_path: String, commit_oid: String, mainline: Option<u32>) -> Result<RevertResult, String> {
+    execute_revert(&PathBuf::from(repo_path), &commit_oid, mainline).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:branch_reset")]
+async fn git_branch_reset(repo_path: String, target_oid: String, mode: ResetMode) -> Result<ResetResult, String> {
+    execute_reset(&PathBuf::from(repo_path), &target_oid, mode).map_err(|e| e.to_string())
+}
+
 async fn initialize_db() -> Pool<Sqlite> {
     let home = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")).unwrap_or_else(|_| ".".to_string());
     let tye_dir = PathBuf::from(home).join(".tye");
@@ -366,7 +456,25 @@ fn main() {
             git_remote_test,
             git_remote_fetch,
             git_branch_pull,
-            git_branch_push
+            git_branch_push,
+            git_conflict_list,
+            git_conflict_get_panes,
+            git_conflict_resolve,
+            git_conflict_continue,
+            git_conflict_abort,
+            git_stash_list,
+            git_stash_save,
+            git_stash_apply,
+            git_stash_pop,
+            git_stash_drop,
+            git_branch_merge_analyze,
+            git_branch_merge,
+            git_branch_rebase_start,
+            git_branch_rebase_continue,
+            git_branch_rebase_abort,
+            git_commit_cherrypick,
+            git_commit_revert,
+            git_branch_reset
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

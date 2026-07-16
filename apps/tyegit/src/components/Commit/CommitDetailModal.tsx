@@ -15,6 +15,9 @@ interface CommitDetailModalProps {
   commitId: string | null;
   onClose: () => void;
   onSelectCommit: (commitId: string) => void;
+  onTriggerReset?: (commitId: string, summary: string) => void;
+  onTriggerRebase?: (commitId: string) => void;
+  onConflictDetected?: () => void;
 }
 
 export const CommitDetailModal: React.FC<CommitDetailModalProps> = ({
@@ -22,10 +25,18 @@ export const CommitDetailModal: React.FC<CommitDetailModalProps> = ({
   commitId,
   onClose,
   onSelectCommit,
+  onTriggerReset,
+  onTriggerRebase,
+  onConflictDetected,
 }) => {
   const [detail, setDetail] = useState<CommitDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   useEffect(() => {
     if (!commitId) {
@@ -35,6 +46,7 @@ export const CommitDetailModal: React.FC<CommitDetailModalProps> = ({
     const fetchDetail = async () => {
       setLoading(true);
       setError(null);
+      setConfirmAction(null);
       try {
         const res: CommitDetail = await invoke('git:commit_details', {
           path: repoPath,
@@ -179,8 +191,135 @@ export const CommitDetailModal: React.FC<CommitDetailModalProps> = ({
           ) : null}
         </div>
 
-        {/* Footer */}
-        <div className="p-3 bg-[var(--tye-cream)] border-t-2 border-[var(--tye-ink)] flex justify-end">
+        {confirmAction && (
+          <div className="mx-6 mb-4 p-4 bg-amber-100 border-2 border-amber-800 text-amber-950 font-mono text-xs shadow-[4px_4px_0px_0px_#92400e]">
+            <div className="font-pixel text-sm font-bold text-amber-900 mb-1 flex items-center gap-2">
+              ⚠️ {confirmAction.title}
+            </div>
+            <p className="mb-3 leading-relaxed text-amber-950 font-bold">{confirmAction.message}</p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="px-3 py-1 bg-white border-2 border-amber-800 font-pixel text-xs hover:bg-amber-50 shadow-[2px_2px_0px_0px_#92400e] font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const action = confirmAction.onConfirm;
+                  setConfirmAction(null);
+                  action();
+                }}
+                className="px-3 py-1 bg-amber-600 text-white font-pixel text-xs border-2 border-amber-800 hover:bg-amber-700 shadow-[2px_2px_0px_0px_#92400e] font-bold"
+              >
+                Proceed
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Footer with Phase 4A Actions (`F-036`-`F-039`) */}
+        <div className="p-3 bg-[var(--tye-cream)] border-t-2 border-[var(--tye-ink)] flex items-center justify-between">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={async () => {
+                if (!detail) return;
+                try {
+                  setError(null);
+                  const res: any = await invoke('git:commit_cherrypick', {
+                    repoPath,
+                    commitOids: [detail.id],
+                    noCommit: false,
+                  });
+                  if (res.has_conflicts && onConflictDetected) {
+                    onConflictDetected();
+                  }
+                  onClose();
+                } catch (err: any) {
+                  setError(`Cherry-pick failed: ${err || 'unknown error'}`);
+                }
+              }}
+              className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white font-mono text-xs font-bold rounded shadow-[2px_2px_0px_var(--tye-ink)] transition-transform active:scale-95"
+              title="Apply changes introduced by this commit onto current branch (F-037)"
+            >
+              Cherry-Pick (`F-037`)
+            </button>
+
+            <button
+              onClick={() => {
+                if (!detail) return;
+                setConfirmAction({
+                  title: "Revert Commit",
+                  message: `Are you sure you want to revert commit ${detail.id.slice(0, 7)}? A new commit will be created that undoes all changes introduced by this commit.`,
+                  onConfirm: async () => {
+                    try {
+                      setError(null);
+                      const res: any = await invoke('git:commit_revert', {
+                        repoPath,
+                        commitOid: detail.id,
+                        mainline: null,
+                      });
+                      if (res.has_conflicts && onConflictDetected) {
+                        onConflictDetected();
+                      }
+                      onClose();
+                    } catch (err: any) {
+                      setError(`Revert failed: ${err || 'unknown error'}`);
+                    }
+                  }
+                });
+              }}
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold rounded shadow-[2px_2px_0px_var(--tye-ink)] transition-transform active:scale-95"
+              title="Create new commit reverting changes of this commit (F-038)"
+            >
+              Revert (`F-038`)
+            </button>
+
+            <button
+              onClick={() => {
+                if (!detail) return;
+                if (onTriggerReset) {
+                  setConfirmAction({
+                    title: "Reset Branch",
+                    message: `Are you sure you want to hard reset the current branch to ${detail.id.slice(0, 7)}? All local changes will be lost.`,
+                    onConfirm: () => {
+                      onTriggerReset(detail.id, detail.message_subject);
+                      onClose();
+                    }
+                  });
+                } else {
+                  setError('Reset trigger not connected.');
+                }
+              }}
+              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-mono text-xs font-bold rounded shadow-[2px_2px_0px_var(--tye-ink)] transition-transform active:scale-95"
+              title="Reset current branch pointer to this commit (F-039)"
+            >
+              Reset Here (`F-039`)
+            </button>
+
+            <button
+              onClick={() => {
+                if (!detail) return;
+                if (onTriggerRebase) {
+                  setConfirmAction({
+                    title: "Rebase Onto",
+                    message: `Start interactive rebase from commit ${detail.id.slice(0, 7)}?`,
+                    onConfirm: () => {
+                      onTriggerRebase(detail.id);
+                      onClose();
+                    }
+                  });
+                } else {
+                  setError('Rebase trigger not connected.');
+                }
+              }}
+              className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-mono text-xs font-bold rounded shadow-[2px_2px_0px_var(--tye-ink)] transition-transform active:scale-95"
+              title="Start interactive rebase from this commit (F-036)"
+            >
+              Rebase Onto (`F-036`)
+            </button>
+          </div>
+
           <button
             onClick={onClose}
             className="px-6 py-1.5 bg-[var(--tye-ink)] text-white font-pixel font-bold text-xs rounded hover:bg-gray-800 shadow-[2px_2px_0px_var(--tye-lavender)]"

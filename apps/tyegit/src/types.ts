@@ -282,3 +282,83 @@ export interface PushResult {
   forced: boolean;
   message: string;
 }
+
+// Milestone 4A Types
+export interface ConflictFileItem {
+  file_path: string;
+  is_resolved: boolean;
+  has_base: boolean;
+  has_ours: boolean;
+  has_theirs: boolean;
+}
+
+export interface ThreeWayPanes {
+  file_path: string;
+  base_content: string;
+  ours_content: string;
+  theirs_content: string;
+}
+
+export interface StashItem {
+  index: number;
+  message: string;
+  stash_oid: string;
+}
+
+export type MergeStrategy = "FastForward" | "NoFastForward" | "Squash" | "FastForwardOnly";
+
+export interface MergeAnalysisResult {
+  is_up_to_date: boolean;
+  can_fast_forward: boolean;
+  is_normal_merge: boolean;
+  commits_ahead: number;
+  commits_behind: number;
+  conflict_probability: string;
+}
+
+export interface MergeExecuteResult {
+  success: boolean;
+  has_conflicts: boolean;
+  merge_commit_oid?: string;
+  message: string;
+}
+
+export type RebaseAction = "Pick" | "Reword" | "Edit" | "Squash" | "Fixup" | "Drop";
+
+export interface RebasePlanItem {
+  commit_oid: string;
+  action: RebaseAction;
+  new_message?: string;
+}
+
+export interface RebaseStatus {
+  is_finished: boolean;
+  has_conflicts: boolean;
+  current_step: number;
+  total_steps: number;
+  message: string;
+}
+
+export interface CherryPickResult {
+  success: boolean;
+  has_conflicts: boolean;
+  applied_count: number;
+  new_commit_oids: string[];
+  message: string;
+}
+
+export interface RevertResult {
+  success: boolean;
+  has_conflicts: boolean;
+  new_commit_oid?: string;
+  message: string;
+}
+
+export type ResetMode = "Soft" | "Mixed" | "Hard";
+
+export interface ResetResult {
+  success: boolean;
+  target_oid: string;
+  mode: ResetMode;
+  message: string;
+}

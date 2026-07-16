@@ -32,7 +32,7 @@ pub enum GitEngineError {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
-    #[error("git2 libgit2 error: {0}")]
+    #[error("{0}")]
     Git2Error(#[from] git2::Error),
 
     #[error("Vault error: {0}")]
@@ -49,4 +49,16 @@ pub enum GitEngineError {
 
     #[error("Sync operation error: {0}")]
     SyncError(String),
+
+    #[error("Conflict error: {0}")]
+    ConflictError(String),
+
+    #[error("Operation aborted: {0}")]
+    OperationAborted(String),
+
+    #[error("Stash error: {0}")]
+    StashError(String),
+
+    #[error("Rebase error: {0}")]
+    RebaseError(String),
 }

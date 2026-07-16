@@ -46,7 +46,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       await invoke('git:dashboard_pin_repo', { repoId, pinned: !currentPin });
       fetchRepos();
     } catch (err: any) {
-      alert(`Failed to pin repository: ${err}`);
+      setError(`Failed to pin repository: ${err}`);
     }
   };
 

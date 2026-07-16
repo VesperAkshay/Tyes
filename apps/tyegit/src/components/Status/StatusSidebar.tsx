@@ -98,11 +98,18 @@ export const StatusSidebar: React.FC<StatusSidebarProps> = ({
     }
   };
 
-  const handleDiscard = async (e: React.MouseEvent, filePath: string, type: DiscardType) => {
+  const [confirmDiscard, setConfirmDiscard] = useState<{
+    filePath: string;
+    type: DiscardType;
+  } | null>(null);
+
+  const handleDiscard = (e: React.MouseEvent, filePath: string, type: DiscardType) => {
     e.stopPropagation();
-    if (!window.confirm(`Are you sure you want to discard changes in ${filePath}? ${type === 'Untracked' ? '(Will move to Recycle Bin)' : ''}`)) {
-      return;
-    }
+    setConfirmDiscard({ filePath, type });
+  };
+
+  const executeDiscard = async (filePath: string, type: DiscardType) => {
+    setConfirmDiscard(null);
     try {
       await invoke('git:discard_changes', {
         path: repoPath,
@@ -203,6 +210,31 @@ export const StatusSidebar: React.FC<StatusSidebarProps> = ({
           </button>
         </div>
       </div>
+
+      {confirmDiscard && (
+        <div className="m-3 p-3 bg-amber-100 border-2 border-amber-800 text-amber-950 font-mono text-xs shadow-[3px_3px_0px_0px_#92400e]">
+          <div className="font-pixel text-xs font-bold text-amber-900 mb-1">
+            ⚠️ Confirm Discard
+          </div>
+          <p className="mb-2 font-bold text-[11px] leading-tight">
+            Discard changes in {confirmDiscard.filePath}? {confirmDiscard.type === 'Untracked' ? '(Will move to Recycle Bin)' : ''}
+          </p>
+          <div className="flex justify-end gap-1.5">
+            <button
+              onClick={() => setConfirmDiscard(null)}
+              className="px-2 py-0.5 bg-white border border-amber-800 font-pixel text-[10px] font-bold"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => executeDiscard(confirmDiscard.filePath, confirmDiscard.type)}
+              className="px-2 py-0.5 bg-amber-600 text-white font-pixel text-[10px] border border-amber-800 hover:bg-amber-700 font-bold"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Sections list */}
       <div className="flex-1 overflow-y-auto">

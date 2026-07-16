@@ -15,6 +15,13 @@ pub mod branch;
 pub mod graph;
 pub mod history;
 pub mod remote;
+pub mod conflict;
+pub mod stash;
+pub mod merge;
+pub mod rebase;
+pub mod cherrypick;
+pub mod revert;
+pub mod reset;
 
 pub use error::GitEngineError;
 pub use installation::{GitInstallation, detect_git, set_custom_git_path, parse_git_version, check_min_version};
@@ -32,3 +39,10 @@ pub use branch::{BranchItem, BranchList, CheckoutStrategy, CheckoutResult, get_b
 pub use graph::{GraphNode, GraphEdge, GraphView, get_commit_graph};
 pub use history::{HistorySearchType, HistorySearchQuery, search_history};
 pub use remote::{RemoteItem, ConnectionTestResult, FetchResult, PullStrategy, PullResult, PushResult, get_remotes, add_remote, remove_remote, edit_remote, prune_remote, test_remote_connection, fetch_remote, pull_branch, push_branch};
+pub use conflict::{ConflictFileItem, ThreeWayPanes, get_conflicted_files, get_three_way_content, resolve_conflict_file, abort_merge_or_rebase, continue_merge_or_rebase};
+pub use stash::{StashItem, list_stashes, save_stash, apply_stash, pop_stash, drop_stash};
+pub use merge::{MergeStrategy, MergeAnalysisResult, MergeExecuteResult, analyze_merge, execute_merge};
+pub use rebase::{RebaseAction, RebasePlanItem, RebaseStatus, start_interactive_rebase, continue_rebase, abort_rebase};
+pub use cherrypick::{CherryPickResult, execute_cherrypick};
+pub use revert::{RevertResult, execute_revert};
+pub use reset::{ResetMode, ResetResult, execute_reset};

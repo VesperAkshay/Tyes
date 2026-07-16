@@ -143,7 +143,7 @@ pub fn stage_patch(repo_path: &Path, patch_str: &str) -> Result<(), crate::error
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(crate::error::GitEngineError::Git2Error(git2::Error::from_str(&format!(
-            "Patch apply failed (libgit2 ApplyFail(-35) & git apply error): {}", stderr.trim()
+            "Patch apply failed: {}", stderr.trim()
         ))));
     }
 

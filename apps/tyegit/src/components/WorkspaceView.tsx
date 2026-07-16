@@ -8,7 +8,12 @@ import { CommitDetailModal } from './Commit/CommitDetailModal';
 import { CommitGraphView } from './Graph/CommitGraphView';
 import { BranchManager } from './Branch/BranchManager';
 import { RemoteManagerModal } from './Remote/RemoteManagerModal';
-import { StatusResult } from '../types';
+import { ThreeWayConflictModal } from './Conflicts/ThreeWayConflictModal';
+import { StashManagerModal } from './Stash/StashManagerModal';
+import { MergeBranchModal } from './Modals/MergeBranchModal';
+import { ResetBranchModal } from './Modals/ResetBranchModal';
+import { InteractiveRebaseModal } from './Modals/InteractiveRebaseModal';
+import { StatusResult, ConflictFileItem, BranchItem, BranchList, CommitListItem } from '../types';
 import {
   RiArrowLeftLine,
   RiFileCodeLine,
@@ -18,6 +23,9 @@ import {
   RiGitBranchLine,
   RiGitRepositoryCommitsLine,
   RiCloudLine,
+  RiInboxArchiveLine,
+  RiGitMergeLine,
+  RiAlertFill,
 } from 'react-icons/ri';
 
 interface WorkspaceViewProps {
@@ -28,29 +36,89 @@ interface WorkspaceViewProps {
 export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose }) => {
   const [activeTab, setActiveTab] = useState<'changes' | 'history' | 'graph' | 'branches'>('changes');
   const [showRemoteModal, setShowRemoteModal] = useState<boolean>(false);
+  const [showStashModal, setShowStashModal] = useState<boolean>(false);
+  const [showConflictModal, setShowConflictModal] = useState<boolean>(false);
+  const [showMergeModal, setShowMergeModal] = useState<boolean>(false);
+  const [branchesList, setBranchesList] = useState<BranchItem[]>([]);
+  const [currentBranchName, setCurrentBranchName] = useState<string>('main');
+  
+  // Phase 4A Reset / Rebase modals state
+  const [resetTarget, setResetTarget] = useState<{ oid: string; summary: string } | null>(null);
+  const [rebaseTarget, setRebaseTarget] = useState<{ upstreamRef: string; commits: CommitListItem[] } | null>(null);
+  const [conflictsCount, setConflictsCount] = useState<number>(0);
+
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [isStaged, setIsStaged] = useState<boolean>(false);
   const [stagedCount, setStagedCount] = useState<number>(0);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [statusBanner, setStatusBanner] = useState<{ text: string; isError?: boolean } | null>(null);
+
+  const showStatus = (text: string, isError = false) => {
+    setStatusBanner({ text, isError });
+    setTimeout(() => setStatusBanner(null), 5000);
+  };
   
   // Modal for inspected commit
   const [selectedCommitId, setSelectedCommitId] = useState<string | null>(null);
 
-  const fetchStagedCount = async () => {
+  const fetchStagedAndConflicts = async () => {
     try {
       const res: StatusResult = await invoke('git:status_get', {
         path: repoPath,
         includeIgnored: false,
       });
       setStagedCount(res.staged.length);
+      setConflictsCount(res.conflicted.length);
+      // Auto open conflict modal if new conflicts detected
+      if (res.conflicted.length > 0 && !showConflictModal) {
+        // Option to trigger modal
+      }
     } catch (err) {
-      console.error('Failed to update staged count:', err);
+      console.error('Failed to get staged/conflict status:', err);
     }
   };
 
   useEffect(() => {
-    fetchStagedCount();
+    if (repoPath) {
+      fetchStagedAndConflicts();
+    }
   }, [repoPath, refreshTrigger]);
+
+  const handleOpenMergeModal = async () => {
+    try {
+      const data: BranchList = await invoke('git:get_branches', { repoPath });
+      const allBranches: BranchItem[] = [...(data.local || []), ...(data.remote || [])];
+      setBranchesList(allBranches);
+      const current = allBranches.find((b) => b.is_head);
+      setCurrentBranchName(data.active_branch || current?.name || 'main');
+      setShowMergeModal(true);
+    } catch (err: any) {
+      showStatus(`Failed to load branches for merge: ${err}`, true);
+    }
+  };
+
+  const handleOpenRebaseOnto = async (targetCommitId: string) => {
+    try {
+      const commits: CommitListItem[] = await invoke('git:commit_history', {
+        path: repoPath,
+        offset: 0,
+        limit: 100,
+      });
+      const idx = commits.findIndex((c) => c.id === targetCommitId);
+      if (idx === -1) {
+        showStatus('Could not find target commit in recent history.', true);
+        return;
+      }
+      // Commits to rebase are those from HEAD up to (before) the target commit
+      const toRebase = commits.slice(0, idx);
+      setRebaseTarget({
+        upstreamRef: targetCommitId.slice(0, 8),
+        commits: toRebase,
+      });
+    } catch (err: any) {
+      showStatus(`Failed to prepare interactive rebase: ${err}`, true);
+    }
+  };
 
   const handleStatusChange = () => {
     setRefreshTrigger((prev) => prev + 1);
@@ -135,6 +203,24 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
           </div>
 
           <button
+            onClick={() => setShowStashModal(true)}
+            className="px-3 py-1 bg-violet-600 text-white hover:bg-violet-700 border border-[var(--tye-ink)] shadow-[2px_2px_0px_0px_var(--tye-ink)] text-xs font-mono font-bold flex items-center gap-1.5 active:translate-x-[1px] active:translate-y-[1px] transition-all"
+            title="Stash WIP changes (F-041)"
+          >
+            <RiInboxArchiveLine className="w-3.5 h-3.5" />
+            <span>Stash (`F-041`)</span>
+          </button>
+
+          <button
+            onClick={handleOpenMergeModal}
+            className="px-3 py-1 bg-emerald-600 text-white hover:bg-emerald-700 border border-[var(--tye-ink)] shadow-[2px_2px_0px_0px_var(--tye-ink)] text-xs font-mono font-bold flex items-center gap-1.5 active:translate-x-[1px] active:translate-y-[1px] transition-all"
+            title="Merge branches (F-035)"
+          >
+            <RiGitMergeLine className="w-3.5 h-3.5" />
+            <span>Merge (`F-035`)</span>
+          </button>
+
+          <button
             onClick={() => setShowRemoteModal(true)}
             className="px-3 py-1 bg-[var(--tye-lavender)] text-white hover:bg-[var(--tye-ink)] border border-[var(--tye-ink)] shadow-[2px_2px_0px_0px_var(--tye-ink)] text-xs font-mono font-bold flex items-center gap-1.5 active:translate-x-[1px] active:translate-y-[1px] transition-all"
           >
@@ -151,6 +237,35 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
           </button>
         </div>
       </div>
+
+      {/* Conflict Warning Banner (`F-040`) */}
+      {conflictsCount > 0 && (
+        <div className="bg-rose-600 text-white px-4 py-2 flex items-center justify-between font-mono text-xs border-b-2 border-[var(--tye-ink)] shadow-md animate-pulse">
+          <div className="flex items-center gap-2.5 font-bold">
+            <RiAlertFill className="text-lg" />
+            <span>⚠️ {conflictsCount} UNRESOLVED INDEX CONFLICTS DETECTED (`F-040`)</span>
+          </div>
+          <button
+            onClick={() => setShowConflictModal(true)}
+            className="px-3 py-1 bg-white text-rose-700 font-bold rounded border border-[var(--tye-ink)] shadow-[2px_2px_0px_var(--tye-ink)] hover:bg-rose-50 transition-all cursor-pointer"
+          >
+            Open 3-Way Conflict Resolver (`F-040`)
+          </button>
+        </div>
+      )}
+
+      {statusBanner && (
+        <div
+          className={`p-3 mx-4 mt-3 border-2 font-mono text-xs shadow-[3px_3px_0px_0px_var(--tye-ink)] flex items-center justify-between ${
+            statusBanner.isError
+              ? 'bg-rose-100 border-rose-800 text-rose-900'
+              : 'bg-emerald-100 border-emerald-800 text-emerald-900'
+          }`}
+        >
+          <span className="font-bold">{statusBanner.text}</span>
+          <button onClick={() => setStatusBanner(null)} className="font-bold ml-4">✕</button>
+        </div>
+      )}
 
       {/* Main Workspace Content Area */}
       <div className="flex-1 flex overflow-hidden">
@@ -216,12 +331,22 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
         )}
       </div>
 
-      {/* Detail Modal (`F-025`) */}
+      {/* Detail Modal (`F-025` + `F-036`-`F-039` Actions) */}
       <CommitDetailModal
         repoPath={repoPath}
         commitId={selectedCommitId}
         onClose={() => setSelectedCommitId(null)}
         onSelectCommit={(cid) => setSelectedCommitId(cid)}
+        onTriggerReset={(commitId, summary) => {
+          setResetTarget({ oid: commitId, summary });
+        }}
+        onTriggerRebase={(commitId) => {
+          handleOpenRebaseOnto(commitId);
+        }}
+        onConflictDetected={() => {
+          handleStatusChange();
+          setShowConflictModal(true);
+        }}
       />
 
       {/* Remote Manager & Sync Modal (`F-030` - `F-033`) */}
@@ -229,6 +354,67 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
         <RemoteManagerModal
           repoPath={repoPath}
           onClose={() => setShowRemoteModal(false)}
+        />
+      )}
+
+      {/* Phase 4A Modals */}
+      {showConflictModal && (
+        <ThreeWayConflictModal
+          repoPath={repoPath}
+          isOpen={showConflictModal}
+          onClose={() => setShowConflictModal(false)}
+          onResolvedAll={() => {
+            handleStatusChange();
+            setShowConflictModal(false);
+          }}
+        />
+      )}
+
+      {showStashModal && (
+        <StashManagerModal
+          repoPath={repoPath}
+          isOpen={showStashModal}
+          onClose={() => setShowStashModal(false)}
+          onStashChanged={() => handleStatusChange()}
+        />
+      )}
+
+      {showMergeModal && (
+        <MergeBranchModal
+          repoPath={repoPath}
+          branches={branchesList}
+          currentBranch={currentBranchName}
+          isOpen={showMergeModal}
+          onClose={() => setShowMergeModal(false)}
+          onMerged={(hasConflicts) => {
+            handleStatusChange();
+            if (hasConflicts) setShowConflictModal(true);
+          }}
+        />
+      )}
+
+      {resetTarget && (
+        <ResetBranchModal
+          repoPath={repoPath}
+          targetOid={resetTarget.oid}
+          targetSummary={resetTarget.summary}
+          isOpen={true}
+          onClose={() => setResetTarget(null)}
+          onResetCompleted={() => handleStatusChange()}
+        />
+      )}
+
+      {rebaseTarget && (
+        <InteractiveRebaseModal
+          repoPath={repoPath}
+          upstreamRef={rebaseTarget.upstreamRef}
+          commitsToRebase={rebaseTarget.commits}
+          isOpen={true}
+          onClose={() => setRebaseTarget(null)}
+          onRebaseCompleted={(hasConflicts) => {
+            handleStatusChange();
+            if (hasConflicts) setShowConflictModal(true);
+          }}
         />
       )}
     </div>

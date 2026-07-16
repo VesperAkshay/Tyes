@@ -43,29 +43,32 @@ export const RemoteManagerModal: React.FC<RemoteManagerModalProps> = ({ repoPath
   const [actionLoading, setActionLoading] = useState(false);
 
   const [statusMsg, setStatusMsg] = useState<{ text: string; isError?: boolean } | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
   const showStatus = (text: string, isError = false) => {
     setStatusMsg({ text, isError });
-    setTimeout(() => setStatusMsg(null), 6000);
+    setTimeout(() => setStatusMsg(null), 5000);
   };
 
   const fetchRemotes = async () => {
     try {
       setLoading(true);
-      const data: RemoteItem[] = await invoke('git:get_remotes', { repoPath });
-      setRemotes(data);
-      if (data.length > 0 && !selectedRemoteName) {
-        setSelectedRemoteName(data[0].name);
+      const items = await invoke<RemoteItem[]>('git:remote_list', { repoPath });
+      setRemotes(items);
+      if (items.length > 0 && !selectedRemoteName) {
+        setSelectedRemoteName(items[0].name);
       }
     } catch (err: any) {
-      showStatus(`Failed to fetch remotes: ${err}`, true);
+      showStatus(`Failed to load remotes: ${err}`, true);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRemotes();
+    if (repoPath) {
+      fetchRemotes();
+    }
   }, [repoPath]);
 
   const handleAddRemote = async (e: React.FormEvent) => {
@@ -78,17 +81,21 @@ export const RemoteManagerModal: React.FC<RemoteManagerModalProps> = ({ repoPath
         url: newRemoteUrl.trim(),
       });
       showStatus(`Added remote '${newRemoteName.trim()}'`);
-      setShowAddForm(false);
-      setNewRemoteName('');
+      setNewRemoteName('origin');
       setNewRemoteUrl('');
+      setShowAddForm(false);
       fetchRemotes();
     } catch (err: any) {
       showStatus(`Failed to add remote: ${err}`, true);
     }
   };
 
-  const handleRemoveRemote = async (name: string) => {
-    if (!confirm(`Are you sure you want to remove remote '${name}'?`)) return;
+  const handleRemoveRemote = (name: string) => {
+    setConfirmRemove(name);
+  };
+
+  const executeRemoveRemote = async (name: string) => {
+    setConfirmRemove(null);
     try {
       await invoke('git:remote_remove', { repoPath, name });
       showStatus(`Removed remote '${name}'`);
@@ -229,6 +236,31 @@ export const RemoteManagerModal: React.FC<RemoteManagerModalProps> = ({ repoPath
           >
             <span>{statusMsg.text}</span>
             <button onClick={() => setStatusMsg(null)} className="font-bold ml-4">✕</button>
+          </div>
+        )}
+
+        {confirmRemove && (
+          <div className="mb-4 p-4 bg-amber-100 border-2 border-amber-800 text-amber-950 font-mono text-xs shadow-[4px_4px_0px_0px_#92400e]">
+            <div className="font-pixel text-sm font-bold text-amber-900 mb-1">
+              ⚠️ Confirm Remove Remote
+            </div>
+            <p className="mb-3 font-bold">
+              Are you sure you want to remove remote '{confirmRemove}'?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmRemove(null)}
+                className="px-3 py-1 bg-white border-2 border-amber-800 font-pixel text-xs font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => executeRemoveRemote(confirmRemove)}
+                className="px-3 py-1 bg-amber-600 text-white font-pixel text-xs border-2 border-amber-800 hover:bg-amber-700 font-bold"
+              >
+                Confirm Remove
+              </button>
+            </div>
           </div>
         )}
 

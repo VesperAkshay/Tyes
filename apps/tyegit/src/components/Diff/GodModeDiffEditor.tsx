@@ -100,7 +100,7 @@ export const GodModeDiffEditor: React.FC<GodModeDiffEditorProps> = ({
       onStageChange();
       fetchDiff();
     } catch (err: any) {
-      alert(`Failed to stage hunk/line: ${typeof err === 'string' ? err : err.message}`);
+      setError(`Failed to stage hunk/line: ${typeof err === 'string' ? err : err.message}`);
     }
   };
 

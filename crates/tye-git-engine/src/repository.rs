@@ -228,7 +228,7 @@ pub async fn clone_repository(
 
         builder.clone(&options.url, &options.path).map_err(|e| GitEngineError::RepositoryError {
             path: options.path.display().to_string(),
-            message: format!("libgit2 clone failed: {}", e),
+            message: format!("Clone failed: {}", e.message()),
         })?;
     }
 

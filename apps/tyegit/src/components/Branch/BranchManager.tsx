@@ -106,17 +106,22 @@ export const BranchManager: React.FC<BranchManagerProps> = ({ repoPath, onBranch
     }
   };
 
-  const handleDeleteBranch = async (branch: BranchItem, force = false) => {
-    if (!confirm(`Are you sure you want to delete branch '${branch.name}'?`)) return;
+  const [confirmDelete, setConfirmDelete] = useState<{ branch: BranchItem; force: boolean } | null>(null);
+  const [confirmUpstream, setConfirmUpstream] = useState<{ branch: BranchItem; target: string } | null>(null);
+
+  const handleDeleteBranch = (branch: BranchItem, force = false) => {
+    setConfirmDelete({ branch, force });
+  };
+
+  const executeDeleteBranch = async (branch: BranchItem, force = false) => {
+    setConfirmDelete(null);
     try {
       await invoke('git:branch_delete', { repoPath, name: branch.name, force });
       showStatus(`Deleted branch '${branch.name}'`);
       fetchBranches();
     } catch (err: any) {
-      if (err.includes('not fully merged') && !force) {
-        if (confirm(`Branch '${branch.name}' is not fully merged! Force delete (-D)?`)) {
-          handleDeleteBranch(branch, true);
-        }
+      if (typeof err === 'string' && err.includes('not fully merged') && !force) {
+        setConfirmDelete({ branch, force: true });
       } else {
         showStatus(`Delete error: ${err}`, true);
       }
@@ -140,10 +145,13 @@ export const BranchManager: React.FC<BranchManagerProps> = ({ repoPath, onBranch
     }
   };
 
-  const handleSetUpstream = async (branch: BranchItem) => {
+  const handleSetUpstream = (branch: BranchItem) => {
     const defaultUpstream = branch.upstream_name || `origin/${branch.shorthand}`;
-    const target = prompt(`Set upstream branch for '${branch.name}' (leave blank to unset):`, defaultUpstream);
-    if (target === null) return;
+    setConfirmUpstream({ branch, target: defaultUpstream });
+  };
+
+  const executeSetUpstream = async (branch: BranchItem, target: string) => {
+    setConfirmUpstream(null);
     try {
       await invoke('git:branch_set_upstream', {
         repoPath,
@@ -204,6 +212,60 @@ export const BranchManager: React.FC<BranchManagerProps> = ({ repoPath, onBranch
         >
           <span>{statusMsg.text}</span>
           <button onClick={() => setStatusMsg(null)} className="font-bold ml-4">✕</button>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="mb-4 p-4 bg-amber-100 border-2 border-amber-800 text-amber-950 font-mono text-xs shadow-[4px_4px_0px_0px_#92400e]">
+          <div className="font-pixel text-sm font-bold text-amber-900 mb-1">
+            ⚠️ Confirm Delete Branch
+          </div>
+          <p className="mb-3 font-bold">
+            Are you sure you want to {confirmDelete.force ? 'force delete (-D)' : 'delete (-d)'} branch '{confirmDelete.branch.name}'?
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setConfirmDelete(null)}
+              className="px-3 py-1 bg-white border-2 border-amber-800 font-pixel text-xs font-bold"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => executeDeleteBranch(confirmDelete.branch, confirmDelete.force)}
+              className="px-3 py-1 bg-amber-600 text-white font-pixel text-xs border-2 border-amber-800 hover:bg-amber-700 font-bold"
+            >
+              Confirm Delete
+            </button>
+          </div>
+        </div>
+      )}
+
+      {confirmUpstream && (
+        <div className="mb-4 p-4 bg-sky-100 border-2 border-sky-800 text-sky-950 font-mono text-xs shadow-[4px_4px_0px_0px_#075985]">
+          <div className="font-pixel text-sm font-bold text-sky-900 mb-2">
+            🔗 Set Upstream for '{confirmUpstream.branch.name}'
+          </div>
+          <input
+            type="text"
+            value={confirmUpstream.target}
+            onChange={(e) => setConfirmUpstream({ ...confirmUpstream, target: e.target.value })}
+            placeholder="e.g. origin/main or leave empty to unset"
+            className="w-full p-2 mb-3 bg-white border-2 border-sky-800 font-bold"
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setConfirmUpstream(null)}
+              className="px-3 py-1 bg-white border-2 border-sky-800 font-pixel text-xs font-bold"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => executeSetUpstream(confirmUpstream.branch, confirmUpstream.target)}
+              className="px-3 py-1 bg-sky-600 text-white font-pixel text-xs border-2 border-sky-800 hover:bg-sky-700 font-bold"
+            >
+              Save Upstream
+            </button>
+          </div>
         </div>
       )}
 
