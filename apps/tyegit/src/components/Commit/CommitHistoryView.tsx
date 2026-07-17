@@ -8,6 +8,7 @@ import {
   RiRefreshLine,
   RiArrowLeftSLine,
   RiArrowRightSLine,
+  RiFileCopyLine,
 } from 'react-icons/ri';
 
 interface CommitHistoryViewProps {
@@ -118,10 +119,22 @@ export const CommitHistoryView: React.FC<CommitHistoryViewProps> = ({
                 <tr
                   key={c.id}
                   onClick={() => onSelectCommit(c.id)}
-                  className="hover:bg-[var(--tye-lavender)]/10 cursor-pointer transition-colors"
+                  className="hover:bg-[var(--tye-lavender)]/10 cursor-pointer transition-colors group"
                 >
-                  <td className="py-2.5 px-4 font-bold text-[var(--tye-lavender)] hover:underline">
-                    {c.short_id}
+                  <td className="py-2.5 px-4 font-bold text-[var(--tye-lavender)]">
+                    <div className="flex items-center gap-2">
+                      <span className="hover:underline">{c.short_id}</span>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(c.id);
+                        }}
+                        title="Copy full SHA"
+                        className="opacity-0 group-hover:opacity-100 hover:text-[var(--tye-ink)] transition-opacity"
+                      >
+                        <RiFileCopyLine />
+                      </button>
+                    </div>
                   </td>
                   <td className="py-2.5 px-3">
                     <div className="flex items-center gap-2">

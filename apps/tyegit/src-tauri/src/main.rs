@@ -7,7 +7,8 @@ use tauri::State;
 use tokio::sync::Mutex;
 use tye_git_engine::*;
 use tye_git_engine::maintenance::GcResult;
-
+use tye_git_engine::internals::{git_internals_get_object, git_internals_search_prefix, git_internals_get_tree, GitObjectInfo, GitTreeEntry};
+use tye_git_engine::plumbing::{git_plumbing_execute_safe, git_plumbing_execute_dangerous};
 pub struct AppState {
     pub pool: Pool<Sqlite>,
     pub current_project_id: Arc<Mutex<String>>,
@@ -470,6 +471,127 @@ async fn git_repo_optimize(repo_path: String) -> Result<GcResult, String> {
     run_git_gc(&PathBuf::from(repo_path)).await.map_err(|e| e.to_string())
 }
 
+// Worktrees
+#[tauri::command(rename = "git:worktree_list")]
+async fn git_worktree_list(repo_path: String) -> Result<Vec<WorktreeInfo>, String> {
+    list_worktrees(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:worktree_add")]
+async fn git_worktree_add(repo_path: String, name: String, path: String) -> Result<WorktreeInfo, String> {
+    add_worktree(&PathBuf::from(repo_path), &name, &path).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:worktree_remove")]
+async fn git_worktree_remove(repo_path: String, name: String) -> Result<(), String> {
+    remove_worktree(&PathBuf::from(repo_path), &name).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:worktree_lock")]
+async fn git_worktree_lock(repo_path: String, name: String, reason: String) -> Result<(), String> {
+    lock_worktree(&PathBuf::from(repo_path), &name, &reason).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:worktree_unlock")]
+async fn git_worktree_unlock(repo_path: String, name: String) -> Result<(), String> {
+    unlock_worktree(&PathBuf::from(repo_path), &name).map_err(|e| e.to_string())
+}
+
+// Submodules
+#[tauri::command(rename = "git:submodule_list")]
+async fn git_submodule_list(repo_path: String) -> Result<Vec<SubmoduleInfo>, String> {
+    list_submodules(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:submodule_init")]
+async fn git_submodule_init(repo_path: String, name: String) -> Result<(), String> {
+    init_submodule(&PathBuf::from(repo_path), &name).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:submodule_update")]
+async fn git_submodule_update(repo_path: String, name: String) -> Result<(), String> {
+    update_submodule(&PathBuf::from(repo_path), &name).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:submodule_sync")]
+async fn git_submodule_sync(repo_path: String, name: String) -> Result<(), String> {
+    sync_submodule(&PathBuf::from(repo_path), &name).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:submodule_add")]
+async fn git_submodule_add(repo_path: String, url: String, path: Option<String>) -> Result<(), String> {
+    add_submodule(&PathBuf::from(repo_path), &url, path.as_deref()).map_err(|e| e.to_string())
+}
+
+// Hooks
+#[tauri::command(rename = "git:hook_list")]
+async fn git_hook_list(repo_path: String) -> Result<Vec<Hook>, String> {
+    list_hooks(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:hook_toggle")]
+async fn git_hook_toggle(repo_path: String, name: String, enable: bool) -> Result<(), String> {
+    toggle_hook(&PathBuf::from(repo_path), &name, enable).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:hook_edit")]
+async fn git_hook_edit(repo_path: String, name: String, content: String) -> Result<(), String> {
+    edit_hook_script(&PathBuf::from(repo_path), &name, &content).map_err(|e| e.to_string())
+}
+
+// Maintenance (Extended)
+#[tauri::command(rename = "git:repo_prune")]
+async fn git_repo_prune(repo_path: String) -> Result<String, String> {
+    run_git_prune(&PathBuf::from(repo_path)).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:repo_pack_refs")]
+async fn git_repo_pack_refs(repo_path: String) -> Result<String, String> {
+    run_git_pack_refs(&PathBuf::from(repo_path)).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:repo_repack")]
+async fn git_repo_repack(repo_path: String) -> Result<String, String> {
+    run_git_repack(&PathBuf::from(repo_path)).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:repo_fsck")]
+async fn git_repo_fsck(repo_path: String) -> Result<String, String> {
+    run_git_fsck(&PathBuf::from(repo_path)).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:repo_commit_graph")]
+async fn git_repo_commit_graph(repo_path: String) -> Result<String, String> {
+    run_git_commit_graph(&PathBuf::from(repo_path)).await.map_err(|e| e.to_string())
+}
+
+// Internals
+#[tauri::command(rename = "git:internals_get_object")]
+async fn tauri_git_internals_get_object(repo_path: String, oid_hex: String) -> Result<GitObjectInfo, String> {
+    git_internals_get_object(&PathBuf::from(repo_path), &oid_hex).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:internals_search_prefix")]
+async fn tauri_git_internals_search_prefix(repo_path: String, prefix: String) -> Result<String, String> {
+    git_internals_search_prefix(&PathBuf::from(repo_path), &prefix).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:internals_get_tree")]
+async fn tauri_git_internals_get_tree(repo_path: String, tree_oid_hex: String) -> Result<Vec<GitTreeEntry>, String> {
+    git_internals_get_tree(&PathBuf::from(repo_path), &tree_oid_hex).map_err(|e| e.to_string())
+}
+
+// Plumbing
+#[tauri::command(rename = "git:plumbing_execute_safe")]
+async fn tauri_git_plumbing_execute_safe(repo_path: String, args: Vec<String>) -> Result<String, String> {
+    git_plumbing_execute_safe(&PathBuf::from(repo_path), args).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:plumbing_execute_dangerous")]
+async fn tauri_git_plumbing_execute_dangerous(repo_path: String, args: Vec<String>, state: State<'_, AppState>) -> Result<String, String> {
+    git_plumbing_execute_dangerous(&state.pool, &PathBuf::from(repo_path), args).await.map_err(|e| e.to_string())
+}
+
 async fn initialize_db() -> Pool<Sqlite> {
     let home = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")).unwrap_or_else(|_| ".".to_string());
     let tye_dir = PathBuf::from(home).join(".tye");
@@ -578,8 +700,31 @@ fn main() {
             git_checkpoint_preview,
             git_checkpoint_rollback,
             git_checkpoint_prune,
+            git_checkpoint_delete,
             git_recovery_list,
-            git_checkpoint_delete
+            git_repo_prune,
+            git_repo_pack_refs,
+            git_repo_repack,
+            git_repo_fsck,
+            git_repo_commit_graph,
+            git_worktree_list,
+            git_worktree_add,
+            git_worktree_remove,
+            git_worktree_lock,
+            git_worktree_unlock,
+            git_submodule_list,
+            git_submodule_init,
+            git_submodule_update,
+            git_submodule_sync,
+            git_submodule_add,
+            git_hook_list,
+            git_hook_toggle,
+            git_hook_edit,
+            tauri_git_internals_get_object,
+            tauri_git_internals_search_prefix,
+            tauri_git_internals_get_tree,
+            tauri_git_plumbing_execute_safe,
+            tauri_git_plumbing_execute_dangerous,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

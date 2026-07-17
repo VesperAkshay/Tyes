@@ -9,6 +9,7 @@ import {
   RiCloseLine,
   RiRefreshLine,
   RiFlag2Line,
+  RiFileCopyLine,
 } from 'react-icons/ri';
 
 interface CommitGraphViewProps {
@@ -346,16 +347,28 @@ export const CommitGraphView: React.FC<CommitGraphViewProps> = ({ repoPath, onSe
                     setSelectedCommitId(node.id);
                     if (onSelectCommit) onSelectCommit(node.id);
                   }}
-                  className={`flex items-center justify-between border-b border-[var(--tye-ink)]/15 pr-4 pl-2 cursor-pointer transition-colors ${
+                  className={`group flex items-center justify-between border-b border-[var(--tye-ink)]/15 pr-4 pl-2 cursor-pointer transition-colors ${
                     isSelected ? 'bg-[var(--tye-mustard)]/30 font-bold' : 'hover:bg-[var(--tye-cream)]/70'
                   }`}
                   style={{ height: `${rowHeight}px` }}
                 >
                   <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-4">
                     {/* Pill ID Badge */}
-                    <span className="bg-[var(--tye-ink)] text-white px-1.5 py-0.5 rounded font-mono text-[11px] font-bold flex-shrink-0 shadow-[1px_1px_0px_0px_var(--tye-lavender)]">
-                      {node.short_id}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="bg-[var(--tye-ink)] text-white px-1.5 py-0.5 rounded font-mono text-[11px] font-bold flex-shrink-0 shadow-[1px_1px_0px_0px_var(--tye-lavender)]">
+                        {node.short_id}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(node.id);
+                        }}
+                        title="Copy full SHA"
+                        className="opacity-0 group-hover:opacity-100 text-[var(--tye-ink)] hover:text-[var(--tye-lavender)] transition-opacity p-0.5 flex-shrink-0"
+                      >
+                        <RiFileCopyLine />
+                      </button>
+                    </div>
 
                     {/* Branch / Tag Badges (`F-028`) */}
                     {node.refs && node.refs.length > 0 && (

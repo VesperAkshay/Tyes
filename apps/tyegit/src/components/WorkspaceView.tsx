@@ -17,6 +17,9 @@ import { ResetBranchModal } from './Modals/ResetBranchModal';
 import { InteractiveRebaseModal } from './Modals/InteractiveRebaseModal';
 import { TimeMachineView } from './TimeMachine/TimeMachineView';
 import { MaintenanceView } from './Maintenance/MaintenanceView';
+import { WorktreeManager } from './Worktree/WorktreeManager';
+import { SubmoduleManager } from './Submodule/SubmoduleManager';
+import { AdvancedToolsView } from './Advanced/AdvancedToolsView';
 import { StatusResult, ConflictFileItem, BranchItem, BranchList, CommitListItem } from '../types';
 import {
   RiArrowLeftLine,
@@ -40,7 +43,7 @@ interface WorkspaceViewProps {
 }
 
 export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'changes' | 'history' | 'graph' | 'branches' | 'timemachine' | 'maintenance'>('changes');
+  const [activeTab, setActiveTab] = useState<'changes' | 'history' | 'graph' | 'branches' | 'timemachine' | 'maintenance' | 'worktrees' | 'submodules' | 'advanced'>('changes');
   const [showRemoteModal, setShowRemoteModal] = useState<boolean>(false);
   const [showStashModal, setShowStashModal] = useState<boolean>(false);
   const [showConflictModal, setShowConflictModal] = useState<boolean>(false);
@@ -271,6 +274,36 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
             >
               <RiSettings4Line /> Maintenance
             </button>
+            <button
+              onClick={() => setActiveTab('worktrees')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
+                activeTab === 'worktrees'
+                  ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
+                  : 'hover:bg-white/60'
+              }`}
+            >
+              <RiGitBranchLine /> Worktrees
+            </button>
+            <button
+              onClick={() => setActiveTab('submodules')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
+                activeTab === 'submodules'
+                  ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
+                  : 'hover:bg-white/60'
+              }`}
+            >
+              <RiGitRepositoryLine /> Submodules
+            </button>
+            <button
+              onClick={() => setActiveTab('advanced')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
+                activeTab === 'advanced'
+                  ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
+                  : 'hover:bg-white/60'
+              }`}
+            >
+              <RiFileCodeLine /> Advanced
+            </button>
           </div>
 
           <button
@@ -412,6 +445,25 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
             <MaintenanceView repoPath={repoPath} />
           </div>
         )}
+
+        {activeTab === 'worktrees' && (
+          <div className="flex-1 h-full overflow-hidden">
+            <WorktreeManager repoPath={repoPath} />
+          </div>
+        )}
+
+        {activeTab === 'submodules' && (
+          <div className="flex-1 h-full overflow-hidden">
+            <SubmoduleManager repoPath={repoPath} />
+          </div>
+        )}
+
+        {activeTab === 'advanced' && (
+          <div className="flex-1 h-full overflow-hidden">
+            <AdvancedToolsView repoPath={repoPath} />
+          </div>
+        )}
+
       </div>
 
       {/* Detail Modal */}
