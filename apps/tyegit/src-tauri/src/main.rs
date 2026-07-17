@@ -491,6 +491,7 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .manage(AppState {
             pool,
             current_project_id: Arc::new(Mutex::new("default-project-uuid".to_string())),

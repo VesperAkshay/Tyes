@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocalStorage } from './hooks/useLocalStorage';
 import { invoke } from '@tauri-apps/api/core';
 import { AppShell } from '@tyes/design-system';
 import { Dashboard } from './components/Dashboard';
@@ -32,8 +33,8 @@ export default function App() {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [groups, setGroups] = useState<any[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isWorkspacesCollapsed, setIsWorkspacesCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useLocalStorage('tye:sidebarCollapsed', false);
+  const [isWorkspacesCollapsed, setIsWorkspacesCollapsed] = useLocalStorage('tye:workspacesCollapsed', false);
   
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

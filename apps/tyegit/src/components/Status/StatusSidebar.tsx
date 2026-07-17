@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { StatusResult, FileStatus, DiscardType } from '../../types';
 import {
   RiAddLine,
@@ -87,8 +88,8 @@ export const StatusSidebar: React.FC<StatusSidebarProps> = ({
 }) => {
   const [status, setStatus] = useState<StatusResult | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [includeIgnored, setIncludeIgnored] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<'list' | 'tree'>('tree');
+  const [includeIgnored, setIncludeIgnored] = useLocalStorage<boolean>('tye:statusIncludeIgnored', false);
+  const [viewMode, setViewMode] = useLocalStorage<'list' | 'tree'>('tye:statusViewMode', 'tree');
 
   // Collapsible sections
   const [openStaged, setOpenStaged] = useState<boolean>(true);

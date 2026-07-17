@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import { RepoCard } from '../types';
 import { AddExistingRepoModal } from './Modals/AddExistingRepoModal';
 import { 
@@ -32,7 +33,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('tye:dashboardViewMode', 'grid');
   const [repoToDelete, setRepoToDelete] = useState<RepoCard | null>(null);
   const [showAddExistingModal, setShowAddExistingModal] = useState(false);
 
