@@ -14,6 +14,7 @@ import { MergeBranchModal } from './Modals/MergeBranchModal';
 import { ResetBranchModal } from './Modals/ResetBranchModal';
 import { InteractiveRebaseModal } from './Modals/InteractiveRebaseModal';
 import { TimeMachineView } from './TimeMachine/TimeMachineView';
+import { MaintenanceView } from './Maintenance/MaintenanceView';
 import { StatusResult, ConflictFileItem, BranchItem, BranchList, CommitListItem } from '../types';
 import {
   RiArrowLeftLine,
@@ -28,6 +29,7 @@ import {
   RiGitMergeLine,
   RiAlertFill,
   RiTimeLine,
+  RiSettings4Line,
 } from 'react-icons/ri';
 
 interface WorkspaceViewProps {
@@ -36,7 +38,7 @@ interface WorkspaceViewProps {
 }
 
 export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'changes' | 'history' | 'graph' | 'branches' | 'timemachine'>('changes');
+  const [activeTab, setActiveTab] = useState<'changes' | 'history' | 'graph' | 'branches' | 'timemachine' | 'maintenance'>('changes');
   const [showRemoteModal, setShowRemoteModal] = useState<boolean>(false);
   const [showStashModal, setShowStashModal] = useState<boolean>(false);
   const [showConflictModal, setShowConflictModal] = useState<boolean>(false);
@@ -180,7 +182,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
                   : 'hover:bg-white/60'
               }`}
             >
-              <RiGitRepositoryCommitsLine /> Graph (`F-028`)
+              <RiGitRepositoryCommitsLine /> Graph
             </button>
             <button
               onClick={() => setActiveTab('branches')}
@@ -190,7 +192,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
                   : 'hover:bg-white/60'
               }`}
             >
-              <RiGitBranchLine /> Branches (`F-026`)
+              <RiGitBranchLine /> Branches
             </button>
             <button
               onClick={() => setActiveTab('history')}
@@ -212,24 +214,34 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
             >
               <RiTimeLine /> Time Machine
             </button>
+            <button
+              onClick={() => setActiveTab('maintenance')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
+                activeTab === 'maintenance'
+                  ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
+                  : 'hover:bg-white/60'
+              }`}
+            >
+              <RiSettings4Line /> Maintenance
+            </button>
           </div>
 
           <button
             onClick={() => setShowStashModal(true)}
             className="px-3 py-1 bg-violet-600 text-white hover:bg-violet-700 border border-[var(--tye-ink)] shadow-[2px_2px_0px_0px_var(--tye-ink)] text-xs font-mono font-bold flex items-center gap-1.5 active:translate-x-[1px] active:translate-y-[1px] transition-all"
-            title="Stash WIP changes (F-041)"
+            title="Stash WIP changes"
           >
             <RiInboxArchiveLine className="w-3.5 h-3.5" />
-            <span>Stash (`F-041`)</span>
+            <span>Stash</span>
           </button>
 
           <button
             onClick={handleOpenMergeModal}
             className="px-3 py-1 bg-emerald-600 text-white hover:bg-emerald-700 border border-[var(--tye-ink)] shadow-[2px_2px_0px_0px_var(--tye-ink)] text-xs font-mono font-bold flex items-center gap-1.5 active:translate-x-[1px] active:translate-y-[1px] transition-all"
-            title="Merge branches (F-035)"
+            title="Merge branches"
           >
             <RiGitMergeLine className="w-3.5 h-3.5" />
-            <span>Merge (`F-035`)</span>
+            <span>Merge</span>
           </button>
 
           <button
@@ -237,7 +249,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
             className="px-3 py-1 bg-[var(--tye-lavender)] text-white hover:bg-[var(--tye-ink)] border border-[var(--tye-ink)] shadow-[2px_2px_0px_0px_var(--tye-ink)] text-xs font-mono font-bold flex items-center gap-1.5 active:translate-x-[1px] active:translate-y-[1px] transition-all"
           >
             <RiCloudLine className="w-3.5 h-3.5" />
-            <span>Remotes (`F-030`)</span>
+            <span>Remotes</span>
           </button>
 
           <button
@@ -250,18 +262,18 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
         </div>
       </div>
 
-      {/* Conflict Warning Banner (`F-040`) */}
+      {/* Conflict Warning Banner */}
       {conflictsCount > 0 && (
         <div className="bg-rose-600 text-white px-4 py-2 flex items-center justify-between font-mono text-xs border-b-2 border-[var(--tye-ink)] shadow-md animate-pulse">
           <div className="flex items-center gap-2.5 font-bold">
             <RiAlertFill className="text-lg" />
-            <span>⚠️ {conflictsCount} UNRESOLVED INDEX CONFLICTS DETECTED (`F-040`)</span>
+            <span>⚠️ {conflictsCount} UNRESOLVED INDEX CONFLICTS DETECTED</span>
           </div>
           <button
             onClick={() => setShowConflictModal(true)}
             className="px-3 py-1 bg-white text-rose-700 font-bold rounded border border-[var(--tye-ink)] shadow-[2px_2px_0px_var(--tye-ink)] hover:bg-rose-50 transition-all cursor-pointer"
           >
-            Open 3-Way Conflict Resolver (`F-040`)
+            Open 3-Way Conflict Resolver
           </button>
         </div>
       )}
@@ -283,7 +295,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
       <div className="flex-1 flex overflow-hidden">
         {activeTab === 'changes' && (
           <>
-            {/* Left Status Engine Sidebar (`w-80`) */}
+            {/* Left Status Engine Sidebar */}
             <div className="w-80 flex-shrink-0 h-full overflow-hidden">
               <StatusSidebar
                 repoPath={repoPath}
@@ -294,7 +306,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
               />
             </div>
 
-            {/* Center God-Mode Diff Editor & Bottom Commit Panel (`F-019`-`F-023`) */}
+            {/* Center God-Mode Diff Editor & Bottom Commit Panel */}
             <div className="flex-1 flex flex-col h-full overflow-hidden">
               <GodModeDiffEditor
                 repoPath={repoPath}
@@ -347,9 +359,15 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
             <TimeMachineView repoPath={repoPath} />
           </div>
         )}
+
+        {activeTab === 'maintenance' && (
+          <div className="flex-1 h-full overflow-hidden">
+            <MaintenanceView repoPath={repoPath} />
+          </div>
+        )}
       </div>
 
-      {/* Detail Modal (`F-025` + `F-036`-`F-039` Actions) */}
+      {/* Detail Modal */}
       <CommitDetailModal
         repoPath={repoPath}
         commitId={selectedCommitId}

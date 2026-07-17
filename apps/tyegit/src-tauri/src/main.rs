@@ -6,6 +6,7 @@ use sqlx::{Pool, Sqlite, SqlitePool};
 use tauri::State;
 use tokio::sync::Mutex;
 use tye_git_engine::*;
+use tye_git_engine::maintenance::GcResult;
 
 pub struct AppState {
     pub pool: Pool<Sqlite>,
@@ -141,6 +142,21 @@ async fn git_group_create(name: String, state: State<'_, AppState>) -> Result<Re
 async fn git_group_list(state: State<'_, AppState>) -> Result<Vec<RepoGroup>, String> {
     let pid = state.current_project_id.lock().await.clone();
     get_groups(&state.pool, &pid).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:group_delete")]
+async fn git_group_delete(group_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    delete_group(&state.pool, &group_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:group_add_repo")]
+async fn git_group_add_repo(group_id: String, repo_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    add_to_group(&state.pool, &group_id, &repo_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:group_remove_repo")]
+async fn git_group_remove_repo(group_id: String, repo_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    remove_from_group(&state.pool, &group_id, &repo_id).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command(rename = "git:status_get")]
@@ -449,6 +465,10 @@ async fn git_checkpoint_delete(checkpoint_id: String, state: State<'_, AppState>
     delete_checkpoint(&state.pool, &checkpoint_id).await.map_err(|e| e.to_string())
 }
 
+#[tauri::command(rename = "git:repo_optimize")]
+async fn git_repo_optimize(repo_path: String) -> Result<GcResult, String> {
+    run_git_gc(&PathBuf::from(repo_path)).await.map_err(|e| e.to_string())
+}
 
 async fn initialize_db() -> Pool<Sqlite> {
     let home = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")).unwrap_or_else(|_| ".".to_string());
@@ -470,6 +490,7 @@ fn main() {
     let pool = rt.block_on(initialize_db());
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             pool,
             current_project_id: Arc::new(Mutex::new("default-project-uuid".to_string())),
@@ -492,8 +513,12 @@ fn main() {
             git_repo_clone,
             git_repo_open,
             git_repo_check_health,
+            git_repo_optimize,
             git_group_create,
             git_group_list,
+            git_group_delete,
+            git_group_add_repo,
+            git_group_remove_repo,
             git_status_get,
             git_stage_file,
             git_unstage_file,

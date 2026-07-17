@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { open } from '@tauri-apps/plugin-dialog';
 import { RepoCard } from '../types';
+import { AddExistingRepoModal } from './Modals/AddExistingRepoModal';
 import { 
   RiPushpin2Line, RiFolderOpenLine, RiGitBranchLine, RiErrorWarningLine, 
   RiAddLine, RiDownload2Line, RiSearchLine, RiCheckDoubleLine,
@@ -14,6 +16,7 @@ interface DashboardProps {
   onCloneClick: () => void;
   onScanClick: () => void;
   refreshTrigger?: number;
+  activeWorkspaceId?: string | null;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -22,19 +25,50 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onCloneClick,
   onScanClick,
   refreshTrigger = 0,
+  activeWorkspaceId = null,
 }) => {
   const [repos, setRepos] = useState<RepoCard[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [repoToDelete, setRepoToDelete] = useState<RepoCard | null>(null);
+  const [showAddExistingModal, setShowAddExistingModal] = useState(false);
+
+  const handleSelectFolder = async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+      });
+      if (selected && typeof selected === 'string') {
+        const repo = await invoke<any>('git:repo_init', {
+          path: selected,
+          initReadme: false,
+          gitignoreTemplate: null,
+          license: null
+        });
+        if (activeWorkspaceId) {
+          await invoke('git:group_add_repo', { groupId: activeWorkspaceId, repoId: repo.id });
+        }
+        fetchRepos();
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to open folder: " + err);
+    }
+  };
 
   const fetchRepos = async () => {
     try {
       setLoading(true);
-      const data: RepoCard[] = await invoke('git:dashboard_get_repos');
-      setRepos(data);
+      const [repoData, groupData] = await Promise.all([
+        invoke<RepoCard[]>('git:dashboard_get_repos'),
+        invoke<any[]>('git:group_list', { projectId: 'default_project' })
+      ]);
+      setRepos(repoData);
+      setGroups(groupData);
       setError(null);
     } catch (err: any) {
       setError(err?.toString() || 'Failed to fetch repositories');
@@ -95,10 +129,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  const filteredRepos = repos.filter(r =>
-    r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.path.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleAssignWorkspace = async (repoId: string, groupId: string) => {
+    try {
+      await invoke('git:group_add_repo', { groupId, repoId });
+      fetchRepos();
+    } catch (err: any) {
+      setError(`Failed to assign workspace: ${err}`);
+    }
+  };
+
+  const filteredRepos = repos.filter(r => {
+    const matchesSearch = r.name.toLowerCase().includes(searchQuery.toLowerCase()) || r.path.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    if (activeWorkspaceId) {
+      const activeGroup = groups.find(g => g.id === activeWorkspaceId);
+      if (activeGroup) {
+        return activeGroup.repos.some((gr: any) => gr.id === r.id);
+      }
+      return false; // Workspace not found, show nothing
+    }
+
+    return true; // No workspace selected, show all
+  });
 
   const pinnedRepos = filteredRepos.filter(r => r.is_pinned);
   const unpinnedRepos = filteredRepos.filter(r => !r.is_pinned);
@@ -160,10 +213,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <RepoCardView 
               key={repo.id} 
               repo={repo} 
+              groups={groups}
               viewMode={viewMode}
               onOpen={onOpenRepo} 
               onTogglePin={(e) => handleTogglePin(e, repo.id, repo.is_pinned)} 
               onDelete={(e) => { e.stopPropagation(); setRepoToDelete(repo); }}
+              onAssignWorkspace={(e, groupId) => { e.stopPropagation(); handleAssignWorkspace(repo.id, groupId); }}
             />
           ))}
         </div>
@@ -178,22 +233,43 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Header Bar */}
       <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-[var(--tye-ink)]">
         <div>
-          <h1 className="text-3xl font-bold font-pixel tracking-tight">Repositories</h1>
+          <h1 className="text-3xl font-bold font-pixel tracking-tight">
+            {activeWorkspaceId && groups.length > 0
+              ? groups.find(g => g.id === activeWorkspaceId)?.name || 'Workspace'
+              : 'Repositories'
+            }
+          </h1>
           <p className="text-sm opacity-80 mt-1 font-mono">
-            Tyegit Repository & Configuration Engine ({repos.length} managed)
+            Tyegit Repository & Configuration Engine ({filteredRepos.length} managed)
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <button onClick={onInitClick} className="tye-btn text-xs bg-white flex items-center gap-1.5 shadow-[2px_2px_0px_0px_var(--tye-ink)]">
-            <RiAddLine className="w-3.5 h-3.5 text-[var(--tye-lavender)]" /> Init (`F-008`)
-          </button>
-          <button onClick={onCloneClick} className="tye-btn text-xs bg-white flex items-center gap-1.5 shadow-[2px_2px_0px_0px_var(--tye-ink)]">
-            <RiDownload2Line className="w-3.5 h-3.5 text-[var(--tye-lavender)]" /> Clone (`F-009`)
-          </button>
-          <button onClick={onScanClick} className="tye-btn tye-btn-primary text-xs flex items-center gap-1.5">
-            <RiFolderOpenLine className="w-3.5 h-3.5" /> Auto-Discover (`F-007`)
-          </button>
+          {activeWorkspaceId ? (
+            <>
+              <button onClick={handleSelectFolder} className="tye-btn text-xs bg-white flex items-center gap-1.5 shadow-[2px_2px_0px_0px_var(--tye-ink)]">
+                <RiFolderOpenLine className="w-3.5 h-3.5 text-[var(--tye-lavender)]" /> Select Folder
+              </button>
+              <button onClick={() => setShowAddExistingModal(true)} className="tye-btn text-xs bg-white flex items-center gap-1.5 shadow-[2px_2px_0px_0px_var(--tye-ink)]">
+                <RiAddLine className="w-3.5 h-3.5 text-[var(--tye-lavender)]" /> Add Existing
+              </button>
+              <button onClick={onScanClick} className="tye-btn tye-btn-primary text-xs flex items-center gap-1.5">
+                <RiSearchLine className="w-3.5 h-3.5" /> Auto-Discover
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={onInitClick} className="tye-btn text-xs bg-white flex items-center gap-1.5 shadow-[2px_2px_0px_0px_var(--tye-ink)]">
+                <RiAddLine className="w-3.5 h-3.5 text-[var(--tye-lavender)]" /> Init (`F-008`)
+              </button>
+              <button onClick={onCloneClick} className="tye-btn text-xs bg-white flex items-center gap-1.5 shadow-[2px_2px_0px_0px_var(--tye-ink)]">
+                <RiDownload2Line className="w-3.5 h-3.5 text-[var(--tye-lavender)]" /> Clone (`F-009`)
+              </button>
+              <button onClick={onScanClick} className="tye-btn tye-btn-primary text-xs flex items-center gap-1.5">
+                <RiFolderOpenLine className="w-3.5 h-3.5" /> Auto-Discover (`F-007`)
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -257,18 +333,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
           {renderGroup("Older", olderRepos, <RiFolderOpenLine className="w-3.5 h-3.5 text-[var(--tye-ink)]/60" />)}
         </div>
       )}
+      {showAddExistingModal && activeWorkspaceId && (
+        <AddExistingRepoModal
+          activeWorkspaceId={activeWorkspaceId}
+          onClose={() => setShowAddExistingModal(false)}
+          onSuccess={fetchRepos}
+        />
+      )}
     </div>
   );
 };
 
 const RepoCardView: React.FC<{
   repo: RepoCard;
+  groups: any[];
   viewMode: 'grid' | 'list';
   onOpen: (path: string) => void;
   onTogglePin: (e: React.MouseEvent) => void;
   onDelete: (e: React.MouseEvent) => void;
-}> = ({ repo, viewMode, onOpen, onTogglePin, onDelete }) => {
+  onAssignWorkspace: (e: React.MouseEvent, groupId: string) => void;
+}> = ({ repo, groups, viewMode, onOpen, onTogglePin, onDelete, onAssignWorkspace }) => {
   const isDirty = repo.uncommitted_count > 0;
+  const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
+
+  useEffect(() => {
+    if (!showWorkspaceMenu) return;
+    const handleClickOutside = () => setShowWorkspaceMenu(false);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showWorkspaceMenu]);
   
   if (viewMode === 'list') {
     return (
@@ -355,6 +448,42 @@ const RepoCardView: React.FC<{
             >
               <RiDeleteBin6Line className="w-3.5 h-3.5" />
             </button>
+            <div className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowWorkspaceMenu(!showWorkspaceMenu); }}
+                className="p-1 border border-transparent text-[var(--tye-ink)]/40 hover:border-[var(--tye-ink)] hover:text-[var(--tye-ink)] hover:bg-[var(--tye-cream)] transition-all"
+                title="Add to Workspace"
+              >
+                <RiFolderOpenLine className="w-3.5 h-3.5" />
+              </button>
+              {showWorkspaceMenu && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white border-2 border-[var(--tye-ink)] shadow-[4px_4px_0px_0px_var(--tye-ink)] z-10" onClick={e => e.stopPropagation()}>
+                  <div className="px-3 py-2 bg-[var(--tye-ink)] text-white font-pixel text-xs border-b-2 border-[var(--tye-ink)]">
+                    Add to Workspace
+                  </div>
+                  <div className="py-1 flex flex-col font-mono text-xs">
+                    {(() => {
+                      const availableGroups = groups.filter(g => !g.repos.some((r: any) => r.id === repo.id));
+                      if (availableGroups.length === 0) {
+                        return <span className="px-3 py-2 opacity-50">No available workspaces</span>;
+                      }
+                      return availableGroups.map(g => (
+                        <button
+                          key={g.id}
+                          className="px-3 py-1.5 text-left hover:bg-[var(--tye-lavender)] hover:text-white transition-colors"
+                          onClick={(e) => {
+                            onAssignWorkspace(e, g.id);
+                            setShowWorkspaceMenu(false);
+                          }}
+                        >
+                          {g.name}
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

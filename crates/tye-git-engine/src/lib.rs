@@ -24,6 +24,7 @@ pub mod revert;
 pub mod reset;
 pub mod checkpoint;
 pub mod ignore;
+pub mod maintenance;
 
 pub use error::GitEngineError;
 pub use installation::{GitInstallation, detect_git, set_custom_git_path, parse_git_version, check_min_version};
@@ -32,7 +33,7 @@ pub use ssh::{SshKey, SshConfigHost, list_ssh_keys, read_ssh_config, generate_ed
 pub use repository::{RepositoryHandle, CloneOptions, RepoHealth, open_repository, init_repository, clone_repository, check_repository_health};
 pub use discovery::scan_directories;
 pub use dashboard::{RepoCard, get_dashboard_cards, pin_repository, remove_repository};
-pub use groups::{RepoGroup, create_group, add_to_group, remove_from_group, get_groups, bulk_fetch_group};
+pub use groups::{RepoGroup, create_group, delete_group, add_to_group, remove_from_group, get_groups, bulk_fetch_group};
 pub use status::{FileStatus, StatusResult, DiffStats, SubmoduleSummary, get_repository_status};
 pub use staging::{DiscardType, LineSelection, stage_file, unstage_file, stage_all, unstage_all, stage_patch, discard_changes};
 pub use diff::{DiffLine, DiffHunk, DiffView, ImageDiff, get_file_diff, get_image_diff};
@@ -50,3 +51,4 @@ pub use revert::{RevertResult, execute_revert};
 pub use reset::{ResetMode, ResetResult, execute_reset};
 pub use checkpoint::{ConflictRisk, CheckpointItem, RollbackPreview, RollbackResult, RecoveryType, RecoveryItem, DeleteCheckpointResult, capture_pre_op, capture_manual_pin, toggle_pin_status, capture_external_cli_op, install_terminal_hooks, preview_rollback_impact, rollback_checkpoint, list_checkpoints, prune_old_checkpoints, delete_checkpoint, get_recovery_center_items};
 pub use ignore::{ignore_file, unignore_file};
+pub use maintenance::run_git_gc;

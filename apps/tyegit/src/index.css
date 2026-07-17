@@ -30,6 +30,26 @@ body {
   overflow: hidden;
 }
 
+/* Custom Scrollbar (Tye Platform Styling) */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--tye-cream);
+  border-left: 2px solid rgba(26, 26, 26, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--tye-lavender);
+  border: 2px solid var(--tye-cream);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--tye-ink);
+}
+
 /* Custom halftone/pixelated UI borders & accents */
 .tye-card {
   background-color: var(--tye-cream);

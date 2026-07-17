@@ -32,6 +32,20 @@ pub async fn create_group(pool: &Pool<Sqlite>, name: &str) -> Result<RepoGroup, 
     })
 }
 
+/// Delete a repository group (`F-012`).
+pub async fn delete_group(pool: &Pool<Sqlite>, group_id: &str) -> Result<(), GitEngineError> {
+    sqlx::query("DELETE FROM git_repo_groups WHERE id = ?")
+        .bind(group_id)
+        .execute(pool)
+        .await?;
+    sqlx::query("DELETE FROM git_repo_group_members WHERE group_id = ?")
+        .bind(group_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+
 /// Add a repository to a group (`F-012`).
 pub async fn add_to_group(pool: &Pool<Sqlite>, group_id: &str, repo_id: &str) -> Result<(), GitEngineError> {
     sqlx::query("INSERT OR IGNORE INTO git_repo_group_members (group_id, repo_id) VALUES (?, ?)")
