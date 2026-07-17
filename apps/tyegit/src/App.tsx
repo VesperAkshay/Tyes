@@ -8,7 +8,8 @@ import { WorkspaceView } from './components/WorkspaceView';
 import { InitRepoModal } from './components/Modals/InitRepoModal';
 import { CloneRepoModal } from './components/Modals/CloneRepoModal';
 import { AutoDiscoveryModal } from './components/Modals/AutoDiscoveryModal';
-import { RiDashboardLine, RiSettings4Line, RiKey2Line, RiGitCommitLine, RiCheckDoubleLine, RiCloseLine, RiMenuFoldLine, RiMenuUnfoldLine } from 'react-icons/ri';
+import { AboutModal } from './components/Modals/AboutModal';
+import { RiDashboardLine, RiSettings4Line, RiKey2Line, RiGitCommitLine, RiCheckDoubleLine, RiCloseLine, RiMenuFoldLine, RiMenuUnfoldLine, RiInformationLine } from 'react-icons/ri';
 import tyegitLogo from './assets/logo.png';
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
   const [showInitModal, setShowInitModal] = useState(false);
   const [showCloneModal, setShowCloneModal] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
 
   // Non-blocking sleek notification state instead of browser alerts
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -115,6 +117,15 @@ export default function App() {
               >
                 <RiKey2Line className="w-5 h-5 text-[var(--tye-lavender)] flex-shrink-0" />
                 {!isSidebarCollapsed && <span>SSH Keys (`F-005`)</span>}
+              </button>
+
+              <button
+                onClick={() => setShowAboutModal(true)}
+                title="About Tyegit"
+                className={`flex items-center gap-3 py-2.5 font-bold transition-all ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'} hover:bg-[var(--tye-cream)] hover:translate-x-1`}
+              >
+                <RiInformationLine className="w-5 h-5 text-[var(--tye-lavender)] flex-shrink-0" />
+                {!isSidebarCollapsed && <span>About</span>}
               </button>
             </nav>
           </div>
@@ -202,7 +213,7 @@ export default function App() {
           }}
         />
       )}
-      {showScanModal && (
+    {showScanModal && (
         <AutoDiscoveryModal
           onClose={() => setShowScanModal(false)}
           onSuccess={(found) => {
@@ -213,6 +224,9 @@ export default function App() {
             setRefreshTrigger(prev => prev + 1);
           }}
         />
+      )}
+      {showAboutModal && (
+        <AboutModal onClose={() => setShowAboutModal(false)} />
       )}
     </AppShell>
   );

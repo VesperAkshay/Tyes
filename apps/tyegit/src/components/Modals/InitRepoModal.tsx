@@ -25,14 +25,10 @@ export const InitRepoModal: React.FC<InitRepoModalProps> = ({ onClose, onSuccess
       setLoading(true);
       setError(null);
       const handle: RepositoryHandle = await invoke('git:repo_init', {
-        options: {
-          path: path.trim(),
-          readmeTitle: readmeTitle.trim() || null,
-          readmeDescription: readmeDescription.trim() || null,
-          gitignoreTemplate: gitignoreTemplate === 'None' ? null : gitignoreTemplate,
-          licenseType: licenseType === 'None' ? null : licenseType,
-          initialBranch: 'main',
-        },
+        path: path.trim(),
+        initReadme: readmeTitle.trim() !== '',
+        gitignoreTemplate: gitignoreTemplate === 'None' ? null : gitignoreTemplate,
+        license: licenseType === 'None' ? null : licenseType,
       });
       onSuccess(handle);
       onClose();
