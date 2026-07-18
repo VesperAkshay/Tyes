@@ -633,6 +633,20 @@ async fn git_pr_list(state: tauri::State<'_, AppState>, repo_path: String) -> Re
     tye_git_engine::list_pull_requests(&state.pool, Path::new(&repo_path)).await.map_err(|e| e.to_string())
 }
 
+#[tauri::command(rename = "git:hosting_create_pull_request")]
+async fn git_hosting_create_pull_request(
+    state: tauri::State<'_, AppState>, 
+    repo_path: String,
+    title: String,
+    description: String,
+    head_branch: String,
+    base_branch: String
+) -> Result<PullRequest, String> {
+    tye_git_engine::create_pull_request(&state.pool, Path::new(&repo_path), &title, &description, &head_branch, &base_branch)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command(rename = "git:dashboard_aggregate")]
 async fn git_dashboard_aggregate(state: tauri::State<'_, AppState>, project_id: String, group_id: String) -> Result<DashboardAggregate, String> {
     tye_git_engine::get_dashboard_aggregate(&state.pool, &project_id, &group_id).await.map_err(|e| e.to_string())
@@ -643,6 +657,7 @@ fn main() {
     let pool = rt.block_on(initialize_db());
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .manage(AppState {
@@ -756,6 +771,7 @@ fn main() {
             git_hosting_remove_account,
             git_hosting_start_oauth,
             git_pr_list,
+            git_hosting_create_pull_request,
             git_dashboard_aggregate,
             tauri_git_internals_get_object,
             tauri_git_internals_search_prefix,

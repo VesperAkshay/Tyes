@@ -64,4 +64,4 @@ pub use submodule::{SubmoduleInfo, list_submodules, init_submodule, update_submo
 pub use hooks::{Hook, list_hooks, toggle_hook, edit_hook_script};
 pub use groups::{RepoGroup, create_group, delete_group, add_to_group, remove_from_group, get_groups, bulk_fetch_group, DashboardAggregate, get_dashboard_aggregate};
 pub use hosting::{HostingAccount, start_oauth_flow, list_accounts, remove_account};
-pub use pull_requests::{PullRequest, list_pull_requests};
+pub use pull_requests::{PullRequest, list_pull_requests, create_pull_request};

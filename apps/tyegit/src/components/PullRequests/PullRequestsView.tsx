@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-shell';
 import { RiGitPullRequestLine, RiCheckLine, RiTimeLine, RiCloseCircleLine, RiExternalLinkLine, RiRefreshLine } from 'react-icons/ri';
 import { PullRequest } from '../../types';
+
+import { CreatePRModal } from './CreatePRModal';
 
 interface PullRequestsViewProps {
   repoPath: string;
@@ -11,6 +14,7 @@ export const PullRequestsView: React.FC<PullRequestsViewProps> = ({ repoPath }) 
   const [prs, setPrs] = useState<PullRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const fetchPrs = async () => {
     try {
@@ -47,13 +51,22 @@ export const PullRequestsView: React.FC<PullRequestsViewProps> = ({ repoPath }) 
           <RiGitPullRequestLine className="w-5 h-5 text-[var(--tye-lavender)]" />
           <h2 className="font-pixel font-bold">Pull Requests (`F-050`)</h2>
         </div>
-        <button
-          onClick={fetchPrs}
-          disabled={loading}
-          className="p-1.5 border border-[var(--tye-ink)] hover:bg-[var(--tye-ink)] hover:text-white transition-colors disabled:opacity-50"
-        >
-          <RiRefreshLine className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="px-3 py-1.5 border-2 border-[var(--tye-ink)] bg-[var(--tye-lavender)] text-white font-bold text-xs uppercase tracking-wider hover:bg-[var(--tye-ink)] transition-colors flex items-center gap-1"
+          >
+            + Create PR
+          </button>
+          <button
+            onClick={fetchPrs}
+            disabled={loading}
+            className="p-1.5 border-2 border-[var(--tye-ink)] hover:bg-[var(--tye-ink)] hover:text-white transition-colors disabled:opacity-50"
+            title="Refresh PRs"
+          >
+            <RiRefreshLine className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
@@ -79,15 +92,13 @@ export const PullRequestsView: React.FC<PullRequestsViewProps> = ({ repoPath }) 
                   <h3 className="font-bold text-sm leading-tight flex-1">
                     <span className="text-[var(--tye-lavender)] font-mono">#{pr.number}</span> {pr.title}
                   </h3>
-                  <a
-                    href={pr.url}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    onClick={() => open(pr.url)}
                     className="p-1 hover:text-[var(--tye-lavender)] transition-colors"
                     title="Open in Browser"
                   >
                     <RiExternalLinkLine className="w-4 h-4" />
-                  </a>
+                  </button>
                 </div>
                 
                 <div className="font-mono text-xs opacity-80 flex flex-wrap gap-x-4 gap-y-1">
@@ -115,6 +126,13 @@ export const PullRequestsView: React.FC<PullRequestsViewProps> = ({ repoPath }) 
           </div>
         )}
       </div>
+      
+      <CreatePRModal
+        repoPath={repoPath}
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={() => fetchPrs()}
+      />
     </div>
   );
 };
