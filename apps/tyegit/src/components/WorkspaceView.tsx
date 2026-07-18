@@ -20,6 +20,7 @@ import { MaintenanceView } from './Maintenance/MaintenanceView';
 import { WorktreeManager } from './Worktree/WorktreeManager';
 import { SubmoduleManager } from './Submodule/SubmoduleManager';
 import { AdvancedToolsView } from './Advanced/AdvancedToolsView';
+import { PullRequestsView } from './PullRequests/PullRequestsView';
 import { StatusResult, ConflictFileItem, BranchItem, BranchList, CommitListItem } from '../types';
 import {
   RiArrowLeftLine,
@@ -35,6 +36,8 @@ import {
   RiAlertFill,
   RiTimeLine,
   RiSettings4Line,
+  RiGitPullRequestLine,
+  RiArrowDownSLine,
 } from 'react-icons/ri';
 
 interface WorkspaceViewProps {
@@ -43,13 +46,14 @@ interface WorkspaceViewProps {
 }
 
 export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'changes' | 'history' | 'graph' | 'branches' | 'timemachine' | 'maintenance' | 'worktrees' | 'submodules' | 'advanced'>('changes');
+  const [activeTab, setActiveTab] = useState<'changes' | 'history' | 'graph' | 'branches' | 'timemachine' | 'maintenance' | 'worktrees' | 'submodules' | 'advanced' | 'pullrequests'>('changes');
   const [showRemoteModal, setShowRemoteModal] = useState<boolean>(false);
   const [showStashModal, setShowStashModal] = useState<boolean>(false);
   const [showConflictModal, setShowConflictModal] = useState<boolean>(false);
   const [showMergeModal, setShowMergeModal] = useState<boolean>(false);
   const [branchesList, setBranchesList] = useState<BranchItem[]>([]);
   const [currentBranchName, setCurrentBranchName] = useState<string>('main');
+  const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
   
   // Phase 4A Reset / Rebase modals state
   const [resetTarget, setResetTarget] = useState<{ oid: string; summary: string } | null>(null);
@@ -245,65 +249,61 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
               <RiGitBranchLine /> Branches
             </button>
             <button
-              onClick={() => setActiveTab('history')}
+              onClick={() => setActiveTab('pullrequests')}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
-                activeTab === 'history'
+                activeTab === 'pullrequests'
                   ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
                   : 'hover:bg-white/60'
               }`}
             >
-              <RiHistoryLine /> History
+              <RiGitPullRequestLine /> Pull Requests
             </button>
-            <button
-              onClick={() => setActiveTab('timemachine')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
-                activeTab === 'timemachine'
-                  ? 'bg-[var(--tye-lavender)] text-white font-bold shadow-sm'
-                  : 'hover:bg-white/60'
-              }`}
-            >
-              <RiTimeLine /> Time Machine
-            </button>
-            <button
-              onClick={() => setActiveTab('maintenance')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
-                activeTab === 'maintenance'
-                  ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
-                  : 'hover:bg-white/60'
-              }`}
-            >
-              <RiSettings4Line /> Maintenance
-            </button>
-            <button
-              onClick={() => setActiveTab('worktrees')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
-                activeTab === 'worktrees'
-                  ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
-                  : 'hover:bg-white/60'
-              }`}
-            >
-              <RiGitBranchLine /> Worktrees
-            </button>
-            <button
-              onClick={() => setActiveTab('submodules')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
-                activeTab === 'submodules'
-                  ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
-                  : 'hover:bg-white/60'
-              }`}
-            >
-              <RiGitRepositoryLine /> Submodules
-            </button>
-            <button
-              onClick={() => setActiveTab('advanced')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
-                activeTab === 'advanced'
-                  ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
-                  : 'hover:bg-white/60'
-              }`}
-            >
-              <RiFileCodeLine /> Advanced
-            </button>
+
+            {/* Dropdown for More Tools */}
+            <div className="relative">
+              <button
+                onClick={() => setShowMoreMenu(!showMoreMenu)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors hover:bg-white/60 ${
+                  ['history', 'timemachine', 'maintenance', 'worktrees', 'submodules', 'advanced'].includes(activeTab)
+                    ? 'bg-[var(--tye-lavender)] text-white font-bold shadow-sm'
+                    : ''
+                }`}
+              >
+                More <RiArrowDownSLine />
+              </button>
+              
+              {showMoreMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)}></div>
+                  <div className="absolute top-full mt-1 right-0 bg-white border border-[var(--tye-ink)] shadow-[3px_3px_0px_0px_var(--tye-ink)] z-50 flex flex-col min-w-[160px] rounded p-1">
+                    {[
+                      { id: 'history', icon: RiHistoryLine, label: 'History' },
+                      { id: 'timemachine', icon: RiTimeLine, label: 'Time Machine' },
+                      { id: 'maintenance', icon: RiSettings4Line, label: 'Maintenance' },
+                      { id: 'worktrees', icon: RiGitBranchLine, label: 'Worktrees' },
+                      { id: 'submodules', icon: RiGitRepositoryLine, label: 'Submodules' },
+                      { id: 'advanced', icon: RiFileCodeLine, label: 'Advanced' }
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setActiveTab(item.id as any);
+                          setShowMoreMenu(false);
+                        }}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded text-left transition-colors ${
+                          activeTab === item.id
+                            ? 'bg-[var(--tye-ink)] text-white font-bold'
+                            : 'hover:bg-[var(--tye-cream)] text-[var(--tye-ink)]'
+                        }`}
+                      >
+                        <item.icon className="text-sm flex-shrink-0" />
+                        <span>{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           <button
@@ -461,6 +461,12 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
         {activeTab === 'advanced' && (
           <div className="flex-1 h-full overflow-hidden">
             <AdvancedToolsView repoPath={repoPath} />
+          </div>
+        )}
+
+        {activeTab === 'pullrequests' && (
+          <div className="flex-1 h-full overflow-hidden">
+            <PullRequestsView repoPath={repoPath} />
           </div>
         )}
 

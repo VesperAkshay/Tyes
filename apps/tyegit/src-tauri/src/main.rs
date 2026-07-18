@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use sqlx::{Pool, Sqlite, SqlitePool};
 use tauri::State;
@@ -283,6 +283,11 @@ async fn git_search_history(repo_path: String, query: HistorySearchQuery) -> Res
 
 #[tauri::command(rename = "git:get_remotes")]
 async fn git_get_remotes(repo_path: String) -> Result<Vec<RemoteItem>, String> {
+    get_remotes(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:remote_list")]
+async fn git_remote_list(repo_path: String) -> Result<Vec<RemoteItem>, String> {
     get_remotes(&PathBuf::from(repo_path)).map_err(|e| e.to_string())
 }
 
@@ -607,6 +612,32 @@ async fn initialize_db() -> Pool<Sqlite> {
     pool
 }
 
+// --- MILESTONE 6 ---
+#[tauri::command(rename = "git:hosting_list_accounts")]
+async fn git_hosting_list_accounts(state: tauri::State<'_, AppState>) -> Result<Vec<HostingAccount>, String> {
+    tye_git_engine::list_accounts(&state.pool).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:hosting_remove_account")]
+async fn git_hosting_remove_account(state: tauri::State<'_, AppState>, account_id: String) -> Result<(), String> {
+    tye_git_engine::remove_account(&state.pool, &account_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:hosting_start_oauth")]
+async fn git_hosting_start_oauth(state: tauri::State<'_, AppState>, provider: String) -> Result<HostingAccount, String> {
+    tye_git_engine::start_oauth_flow(&state.pool, &provider).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:pr_list")]
+async fn git_pr_list(state: tauri::State<'_, AppState>, repo_path: String) -> Result<Vec<PullRequest>, String> {
+    tye_git_engine::list_pull_requests(&state.pool, Path::new(&repo_path)).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:dashboard_aggregate")]
+async fn git_dashboard_aggregate(state: tauri::State<'_, AppState>, project_id: String, group_id: String) -> Result<DashboardAggregate, String> {
+    tye_git_engine::get_dashboard_aggregate(&state.pool, &project_id, &group_id).await.map_err(|e| e.to_string())
+}
+
 fn main() {
     let rt = tokio::runtime::Runtime::new().expect("Failed to start tokio runtime");
     let pool = rt.block_on(initialize_db());
@@ -666,6 +697,7 @@ fn main() {
             git_get_commit_graph,
             git_search_history,
             git_get_remotes,
+            git_remote_list,
             git_remote_add,
             git_remote_remove,
             git_remote_edit,
@@ -720,6 +752,11 @@ fn main() {
             git_hook_list,
             git_hook_toggle,
             git_hook_edit,
+            git_hosting_list_accounts,
+            git_hosting_remove_account,
+            git_hosting_start_oauth,
+            git_pr_list,
+            git_dashboard_aggregate,
             tauri_git_internals_get_object,
             tauri_git_internals_search_prefix,
             tauri_git_internals_get_tree,

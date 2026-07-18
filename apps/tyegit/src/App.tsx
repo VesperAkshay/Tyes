@@ -11,6 +11,8 @@ import { CloneRepoModal } from './components/Modals/CloneRepoModal';
 import { AutoDiscoveryModal } from './components/Modals/AutoDiscoveryModal';
 import { AboutModal } from './components/Modals/AboutModal';
 import { CreateWorkspaceModal } from './components/Modals/CreateWorkspaceModal';
+import { AccountCenterModal } from './components/Account/AccountCenterModal';
+import { HostingAccount } from './types';
 import { 
   RiDashboardLine, 
   RiSettings4Line, 
@@ -23,7 +25,8 @@ import {
   RiFolderLine,
   RiAddLine,
   RiGitCommitLine,
-  RiDeleteBin6Line
+  RiDeleteBin6Line,
+  RiUser3Line
 } from 'react-icons/ri';
 import tyegitLogo from './assets/logo.png';
 
@@ -53,6 +56,24 @@ export default function App() {
   const [showScanModal, setShowScanModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showCreateWorkspaceModal, setShowCreateWorkspaceModal] = useState(false);
+  const [showAccountCenter, setShowAccountCenter] = useState(false);
+  const [primaryAccount, setPrimaryAccount] = useState<HostingAccount | null>(null);
+
+  useEffect(() => {
+    const fetchPrimaryAccount = async () => {
+      try {
+        const items = await invoke<HostingAccount[]>('git:hosting_list_accounts');
+        if (items && items.length > 0) {
+          setPrimaryAccount(items[0]);
+        } else {
+          setPrimaryAccount(null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch hosting accounts:", err);
+      }
+    };
+    fetchPrimaryAccount();
+  }, []);
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -234,6 +255,26 @@ export default function App() {
 
           {/* Footer Info Box & Toggle */}
           <div className="w-full mt-4 flex flex-col gap-2">
+            
+            {/* Account Center Avatar */}
+            <button
+              onClick={() => setShowAccountCenter(true)}
+              className="mb-2 w-full flex items-center justify-center p-2 border-2 border-transparent hover:border-[var(--tye-ink)] hover:bg-[var(--tye-cream)] rounded transition-all group"
+              title="Account Center"
+            >
+              {primaryAccount && primaryAccount.avatar_url ? (
+                <img
+                  src={primaryAccount.avatar_url}
+                  alt={primaryAccount.username}
+                  className="w-8 h-8 rounded-full border-2 border-[var(--tye-ink)] group-hover:scale-105 transition-transform"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full border-2 border-[var(--tye-ink)] bg-white flex items-center justify-center group-hover:bg-[var(--tye-lavender)] group-hover:text-white transition-colors">
+                  <RiUser3Line className="w-4 h-4" />
+                </div>
+              )}
+            </button>
+
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               className="p-2 border-2 border-transparent text-[var(--tye-ink)]/50 hover:text-[var(--tye-ink)] hover:bg-[var(--tye-cream)] transition-all flex items-center justify-center w-full group"
@@ -328,9 +369,18 @@ export default function App() {
           }}
         />
       )}
-      {showAboutModal && (
-        <AboutModal onClose={() => setShowAboutModal(false)} />
+      {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
+      
+      {showAccountCenter && (
+        <AccountCenterModal 
+          onClose={() => setShowAccountCenter(false)} 
+          onAccountsChanged={(accounts) => {
+            if (accounts.length > 0) setPrimaryAccount(accounts[0]);
+            else setPrimaryAccount(null);
+          }}
+        />
       )}
+      
       {showCreateWorkspaceModal && (
         <CreateWorkspaceModal 
           onClose={() => setShowCreateWorkspaceModal(false)}

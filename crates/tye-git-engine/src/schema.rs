@@ -76,6 +76,16 @@ pub async fn run_migrations(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
 
         CREATE INDEX IF NOT EXISTS idx_git_checkpoints_repo ON git_checkpoints(repo_path, timestamp DESC);
         CREATE INDEX IF NOT EXISTS idx_git_checkpoints_pinned ON git_checkpoints(repo_path, is_pinned);
+
+        CREATE TABLE IF NOT EXISTS git_hosting_accounts (
+            id TEXT PRIMARY KEY,
+            provider TEXT NOT NULL,
+            username TEXT NOT NULL,
+            base_url TEXT NOT NULL,
+            is_enterprise BOOLEAN NOT NULL DEFAULT 0,
+            avatar_url TEXT,
+            status TEXT NOT NULL DEFAULT 'active'
+        );
         "#
     )
     .execute(pool)

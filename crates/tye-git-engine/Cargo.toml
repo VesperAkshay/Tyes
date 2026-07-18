@@ -26,6 +26,10 @@ base64 = "0.22"
 notify = "6"
 trash = "3"
 regex = "1"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+oauth2 = "4.4"
+tiny_http = "0.12"
+open = "5.4.0"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full", "test-util"] }

@@ -427,3 +427,26 @@ export interface DeleteCheckpointResult {
   was_pinned: boolean;
 }
 
+export interface PullRequest {
+  id: string;
+  number: number;
+  title: string;
+  author: string;
+  url: string;
+  state: string;
+  created_at: string;
+  head_branch: string;
+  base_branch: string;
+  draft: boolean;
+  checks_status: string;
+}
+
+export interface HostingAccount {
+  id: string;
+  provider: string;
+  username: string;
+  base_url: string;
+  is_enterprise: boolean;
+  avatar_url?: string;
+  status: string;
+}

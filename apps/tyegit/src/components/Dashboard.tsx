@@ -31,6 +31,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [repos, setRepos] = useState<RepoCard[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [aggregate, setAggregate] = useState<{ total_repos: number; total_dirty: number; total_size_bytes: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('tye:dashboardViewMode', 'grid');
@@ -70,6 +71,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
       ]);
       setRepos(repoData);
       setGroups(groupData);
+      
+      if (activeWorkspaceId) {
+        try {
+          const agg = await invoke<any>('git:dashboard_aggregate', { 
+            projectId: 'default_project', 
+            groupId: activeWorkspaceId 
+          });
+          setAggregate(agg);
+        } catch (aggErr) {
+          console.warn('Failed to fetch aggregate:', aggErr);
+          setAggregate(null);
+        }
+      } else {
+        setAggregate(null);
+      }
+      
       setError(null);
     } catch (err: any) {
       setError(err?.toString() || 'Failed to fetch repositories');
@@ -243,6 +260,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <p className="text-sm opacity-80 mt-1 font-mono">
             Tyegit Repository & Configuration Engine ({filteredRepos.length} managed)
           </p>
+          {aggregate && (
+            <div className="flex items-center gap-4 mt-3 font-mono text-xs">
+              <span className="px-2 py-1 bg-white border border-[var(--tye-ink)] shadow-[1px_1px_0px_0px_var(--tye-ink)]">
+                <strong>{aggregate.total_repos}</strong> Repositories
+              </span>
+              <span className={`px-2 py-1 border border-[var(--tye-ink)] shadow-[1px_1px_0px_0px_var(--tye-ink)] ${aggregate.total_dirty > 0 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'}`}>
+                <strong>{aggregate.total_dirty}</strong> Dirty
+              </span>
+              <span className="px-2 py-1 bg-[var(--tye-lavender)] text-white font-bold border border-[var(--tye-ink)] shadow-[1px_1px_0px_0px_var(--tye-ink)]">
+                {(aggregate.total_size_bytes / (1024 * 1024)).toFixed(2)} MB Total Size
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">

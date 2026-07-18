@@ -143,3 +143,73 @@ async fn futures_util_join_all<T>(tasks: Vec<tokio::task::JoinHandle<T>>) -> Vec
     }
     out
 }
+
+pub fn get_dir_size(path: &std::path::Path) -> u64 {
+    let mut size = 0;
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            if let Ok(meta) = entry.metadata() {
+                if meta.is_dir() {
+                    let dir_name = entry.file_name();
+                    if dir_name != "target" && dir_name != "node_modules" {
+                        size += get_dir_size(&entry.path());
+                    }
+                } else {
+                    size += meta.len();
+                }
+            }
+        }
+    }
+    size
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardAggregate {
+    pub total_repos: usize,
+    pub dirty_repos: usize,
+    pub total_disk_usage: u64,
+}
+
+pub async fn get_dashboard_aggregate(
+    pool: &Pool<Sqlite>,
+    project_id: &str,
+    group_id: &str,
+) -> Result<DashboardAggregate, GitEngineError> {
+    let groups = get_groups(pool, project_id).await?;
+    let group = groups
+        .into_iter()
+        .find(|g| g.id == group_id)
+        .ok_or_else(|| GitEngineError::GroupNotFound(group_id.to_string()))?;
+
+    let total_repos = group.repos.len();
+    let mut tasks = Vec::with_capacity(total_repos);
+    
+    for repo_card in group.repos {
+        let path = repo_card.path.clone();
+        let pool_clone = pool.clone();
+        tasks.push(tokio::spawn(async move {
+            let status = crate::status::get_repository_status(Some(&pool_clone), std::path::Path::new(&path), false).await.unwrap_or_default();
+            let is_dirty = !status.staged.is_empty() || !status.unstaged.is_empty() || !status.untracked.is_empty();
+            let disk_usage = get_dir_size(&std::path::PathBuf::from(&path));
+            (is_dirty, disk_usage)
+        }));
+    }
+
+    let results = futures_util_join_all(tasks).await;
+    
+    let mut dirty_repos = 0;
+    let mut total_disk_usage = 0;
+    
+    for (is_dirty, disk_usage) in results {
+        if is_dirty {
+            dirty_repos += 1;
+        }
+        total_disk_usage += disk_usage;
+    }
+
+    Ok(DashboardAggregate {
+        total_repos,
+        dirty_repos,
+        total_disk_usage,
+    })
+}

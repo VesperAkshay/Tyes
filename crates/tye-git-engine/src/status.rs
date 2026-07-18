@@ -4,7 +4,7 @@ use git2::{Status, StatusOptions};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Sqlite};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DiffStats {
     pub insertions: usize,
     pub deletions: usize,
@@ -31,7 +31,7 @@ pub struct FileStatus {
     pub diff_stats: Option<DiffStats>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct StatusResult {
     pub staged: Vec<FileStatus>,
     pub unstaged: Vec<FileStatus>,

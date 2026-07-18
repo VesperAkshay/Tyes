@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { GitConfigEntry, GitInstallation, RepoCard } from '../../types';
-import { RiSettings4Line, RiSave3Line, RiRefreshLine, RiCheckDoubleLine, RiErrorWarningLine, RiShieldCheckLine, RiTerminalBoxLine } from 'react-icons/ri';
-
+import { RiSettings4Line, RiSave3Line, RiRefreshLine, RiCheckDoubleLine, RiErrorWarningLine, RiShieldCheckLine, RiTerminalBoxLine, RiCloudLine } from 'react-icons/ri';
 interface ConfigTabsProps {
   activeRepoPath?: string | null;
 }
@@ -500,6 +499,7 @@ export const ConfigTabs: React.FC<ConfigTabsProps> = ({ activeRepoPath }) => {
           </div>
         </div>
       )}
+
     </div>
   );
 };
