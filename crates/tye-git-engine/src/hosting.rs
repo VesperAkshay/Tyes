@@ -58,11 +58,7 @@ pub async fn remove_account(pool: &Pool<Sqlite>, account_id: &str) -> Result<(),
 
 /// Start an OAuth flow on a background thread (blocking) and return the created HostingAccount.
 pub async fn start_oauth_flow(pool: &Pool<Sqlite>, provider: &str) -> Result<HostingAccount, HostingError> {
-    let auth_url = if cfg!(debug_assertions) {
-        format!("http://localhost:8788/auth/{}/login", provider)
-    } else {
-        format!("https://tyegit.tyes.dev/auth/{}/login", provider)
-    };
+    let auth_url = format!("https://tyegit.tyes.dev/auth/{}/login", provider);
 
     // Spin up a local server on port 8421
     let server = Server::http("127.0.0.1:8421").map_err(|e| {
