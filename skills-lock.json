@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "beautify-github-readme": {
+      "source": "oil-oil/beautify-github-readme",
+      "sourceType": "github",
+      "skillPath": "skills/beautify-github-readme/SKILL.md",
+      "computedHash": "9b86a7916ef38ccca91e7aee374e7042a245b730659bf0a92b3656fe178c9f71"
+    },
     "rust-best-practices": {
       "source": "apollographql/skills",
       "sourceType": "github",

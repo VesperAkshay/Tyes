@@ -729,6 +729,47 @@ async fn git_dashboard_aggregate(state: tauri::State<'_, AppState>, project_id: 
     tye_git_engine::get_dashboard_aggregate(&state.pool, &project_id, &group_id).await.map_err(|e| e.to_string())
 }
 
+#[tauri::command(rename = "git:cicd_get_runs")]
+async fn git_cicd_get_runs(state: tauri::State<'_, AppState>, repo_path: String) -> Result<Vec<tye_git_engine::CicdRun>, String> {
+    tye_git_engine::get_pipeline_runs(&state.pool, Path::new(&repo_path)).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:cicd_get_jobs")]
+async fn git_cicd_get_jobs(state: tauri::State<'_, AppState>, repo_path: String, run_id: String) -> Result<Vec<tye_git_engine::CicdJob>, String> {
+    tye_git_engine::get_pipeline_jobs(&state.pool, Path::new(&repo_path), &run_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:cicd_get_log")]
+async fn git_cicd_get_log(state: tauri::State<'_, AppState>, repo_path: String, job_id: String) -> Result<String, String> {
+    tye_git_engine::get_pipeline_log(&state.pool, Path::new(&repo_path), &job_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:cicd_get_environments")]
+async fn git_cicd_get_environments(state: tauri::State<'_, AppState>, repo_path: String) -> Result<Vec<tye_git_engine::CicdEnvironment>, String> {
+    tye_git_engine::get_pipeline_environments(&state.pool, Path::new(&repo_path)).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:cicd_get_secrets")]
+async fn git_cicd_get_secrets(state: tauri::State<'_, AppState>, repo_path: String) -> Result<Vec<tye_git_engine::CicdSecret>, String> {
+    tye_git_engine::get_pipeline_secrets(&state.pool, Path::new(&repo_path)).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:cicd_get_variables")]
+async fn git_cicd_get_variables(state: tauri::State<'_, AppState>, repo_path: String) -> Result<Vec<tye_git_engine::CicdVariable>, String> {
+    tye_git_engine::get_pipeline_variables(&state.pool, Path::new(&repo_path)).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:cicd_add_variable")]
+async fn git_cicd_add_variable(state: tauri::State<'_, AppState>, repo_path: String, name: String, value: String) -> Result<(), String> {
+    tye_git_engine::add_pipeline_variable(&state.pool, Path::new(&repo_path), &name, &value).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command(rename = "git:cicd_add_secret")]
+async fn git_cicd_add_secret(state: tauri::State<'_, AppState>, repo_path: String, name: String, value: String) -> Result<(), String> {
+    tye_git_engine::add_pipeline_secret(&state.pool, Path::new(&repo_path), &name, &value).await.map_err(|e| e.to_string())
+}
+
+
 fn main() {
     let rt = tokio::runtime::Runtime::new().expect("Failed to start tokio runtime");
     let pool = rt.block_on(initialize_db());
@@ -855,6 +896,14 @@ fn main() {
             git_open_plugins_folder,
             git_hosting_create_pull_request,
             git_dashboard_aggregate,
+            git_cicd_get_runs,
+            git_cicd_get_jobs,
+            git_cicd_get_log,
+            git_cicd_get_environments,
+            git_cicd_get_secrets,
+            git_cicd_get_variables,
+            git_cicd_add_variable,
+            git_cicd_add_secret,
             tauri_git_internals_get_object,
             tauri_git_internals_search_prefix,
             tauri_git_internals_get_tree,

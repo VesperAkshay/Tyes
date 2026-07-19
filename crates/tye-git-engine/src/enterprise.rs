@@ -26,16 +26,17 @@ impl DlpScanner {
             return Ok(());
         }
         
-        let forbidden_patterns = [
-            "AKIA", // AWS key prefix
-            "-----BEGIN PRIVATE KEY-----", // Private key
-            "github_pat_", // GitHub PAT
-        ];
-
-        for pattern in forbidden_patterns.iter() {
-            if diff_text.contains(pattern) {
-                return Err(format!("DLP Violation: Found potential secret matching '{}'", pattern));
-            }
+        // Use secrets_scanner
+        use secrets_scanner::{ScanConfig, Scanner};
+        let scanner = Scanner::from_bundled()
+            .map_err(|e| format!("Failed to initialize secret scanner: {}", e))?
+            .with_config(ScanConfig::proxy());
+            
+        let matches = scanner.scan_proxy(diff_text.as_bytes())
+            .map_err(|e| format!("Scanner error: {}", e))?;
+            
+        if !matches.findings.is_empty() {
+            return Err(format!("DLP Violation: Found {} potential secret(s) in commit diff. Please remove them or disable the DLP scanner.", matches.findings.len()));
         }
         
         Ok(())

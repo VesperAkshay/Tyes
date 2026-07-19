@@ -34,6 +34,7 @@ pub mod hosting;
 pub mod pull_requests;
 pub mod enterprise;
 pub mod audit;
+pub mod cicd;
 
 pub use error::GitEngineError;
 pub use installation::{GitInstallation, detect_git, set_custom_git_path, parse_git_version, check_min_version};
@@ -67,3 +68,4 @@ pub use hooks::{Hook, list_hooks, toggle_hook, edit_hook_script};
 pub use groups::{RepoGroup, create_group, delete_group, add_to_group, remove_from_group, get_groups, bulk_fetch_group, DashboardAggregate, get_dashboard_aggregate};
 pub use hosting::{HostingAccount, start_oauth_flow, list_accounts, remove_account};
 pub use pull_requests::{PullRequest, list_pull_requests, create_pull_request};
+pub use cicd::{CicdRun, CicdJob, CicdStep, CicdEnvironment, CicdSecret, CicdVariable, get_pipeline_runs, get_pipeline_jobs, get_pipeline_log, get_pipeline_environments, get_pipeline_secrets, get_pipeline_variables, add_pipeline_secret, add_pipeline_variable};

@@ -12,6 +12,7 @@ pub struct CommitRequest {
     pub signoff: bool,
     pub co_authors: Vec<String>,
     pub commit_type: String, // Normal, Fixup, Squash
+    pub dlp_enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,6 +67,24 @@ pub fn create_commit_sync(
     let mut index = repo.index()?;
     let tree_id = index.write_tree()?;
     let tree = repo.find_tree(tree_id)?;
+
+    // Enterprise DLP Scanner check
+    if req.dlp_enabled {
+        let head = repo.head().ok();
+        let head_tree = head.and_then(|h| h.peel_to_tree().ok());
+        let diff = repo.diff_tree_to_tree(head_tree.as_ref(), Some(&tree), None)?;
+        
+        let mut diff_text = String::new();
+        let _ = diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
+            diff_text.push_str(std::str::from_utf8(line.content()).unwrap_or(""));
+            true
+        });
+
+        let scanner = crate::enterprise::DlpScanner { enabled: true };
+        if let Err(e) = scanner.scan_diff(&diff_text) {
+            return Err(crate::error::GitEngineError::OperationAborted(e));
+        }
+    }
 
     // Construct full message
     let mut full_msg = match req.commit_type.as_str() {

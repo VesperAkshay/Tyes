@@ -142,6 +142,7 @@ export interface CommitRequest {
   signoff: boolean;
   co_authors: string[];
   commit_type: string;
+  dlp_enabled: boolean;
 }
 
 export interface CommitListItem {
@@ -449,4 +450,56 @@ export interface HostingAccount {
   is_enterprise: boolean;
   avatar_url?: string;
   status: string;
+}
+
+export interface CicdRun {
+  id: string;
+  name: string;
+  display_title: string;
+  head_branch: string;
+  event: string;
+  status: string;
+  conclusion?: string;
+  html_url: string;
+  created_at: string;
+}
+
+export interface CicdStep {
+  name: string;
+  status: string;
+  conclusion?: string;
+  number: number;
+  started_at?: string;
+  completed_at?: string;
+}
+
+export interface CicdJob {
+  id: string;
+  run_id: string;
+  name: string;
+  status: string;
+  conclusion?: string;
+  started_at: string;
+  completed_at?: string;
+  steps: CicdStep[];
+  html_url: string;
+}
+
+export interface CicdEnvironment {
+  id: number;
+  name: string;
+  url?: string;
+}
+
+export interface CicdSecret {
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CicdVariable {
+  name: string;
+  value: string;
+  created_at: string;
+  updated_at: string;
 }

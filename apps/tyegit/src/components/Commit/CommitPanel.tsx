@@ -82,6 +82,8 @@ export const CommitPanel: React.FC<CommitPanelProps> = ({
     setSubmitting(true);
     setError(null);
 
+    const dlpEnabled = JSON.parse(localStorage.getItem('tye:enterprise:dlpEnabled') || 'false');
+
     const req: CommitRequest = {
       message: subject.trim(),
       body: body.trim() ? body.trim() : undefined,
@@ -89,6 +91,7 @@ export const CommitPanel: React.FC<CommitPanelProps> = ({
       signoff,
       co_authors: coAuthors,
       commit_type: commitType,
+      dlp_enabled: dlpEnabled,
     };
 
     try {

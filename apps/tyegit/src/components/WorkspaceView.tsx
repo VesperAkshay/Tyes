@@ -21,6 +21,7 @@ import { WorktreeManager } from './Worktree/WorktreeManager';
 import { SubmoduleManager } from './Submodule/SubmoduleManager';
 import { AdvancedToolsView } from './Advanced/AdvancedToolsView';
 import { PullRequestsView } from './PullRequests/PullRequestsView';
+import { PipelineDashboard } from './CI/PipelineDashboard';
 import { StatusResult, ConflictFileItem, BranchItem, BranchList, CommitListItem } from '../types';
 import {
   RiArrowLeftLine,
@@ -38,6 +39,7 @@ import {
   RiSettings4Line,
   RiGitPullRequestLine,
   RiArrowDownSLine,
+  RiRocketLine,
 } from 'react-icons/ri';
 
 interface WorkspaceViewProps {
@@ -46,7 +48,7 @@ interface WorkspaceViewProps {
 }
 
 export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'changes' | 'history' | 'graph' | 'branches' | 'timemachine' | 'maintenance' | 'worktrees' | 'submodules' | 'advanced' | 'pullrequests'>('changes');
+  const [activeTab, setActiveTab] = useState<'changes' | 'history' | 'graph' | 'branches' | 'timemachine' | 'maintenance' | 'worktrees' | 'submodules' | 'advanced' | 'pullrequests' | 'pipelines'>('changes');
   const [showRemoteModal, setShowRemoteModal] = useState<boolean>(false);
   const [showStashModal, setShowStashModal] = useState<boolean>(false);
   const [showConflictModal, setShowConflictModal] = useState<boolean>(false);
@@ -278,13 +280,24 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
             </button>
             <button
               onClick={() => setActiveTab('pullrequests')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors ${
+              className={`px-3 py-1 text-sm font-bold tracking-tight rounded-t-sm transition-colors flex items-center gap-2 ${
                 activeTab === 'pullrequests'
-                  ? 'bg-[var(--tye-ink)] text-white font-bold shadow-sm'
-                  : 'hover:bg-white/60'
+                  ? 'bg-white text-[var(--tye-ink)] border-t border-l border-r border-[var(--tye-ink)] border-b-white'
+                  : 'text-[var(--tye-ink)] opacity-70 hover:opacity-100 border border-transparent'
               }`}
             >
-              <RiGitPullRequestLine /> Pull Requests
+              <RiGitPullRequestLine /> PRs
+            </button>
+
+            <button
+              onClick={() => setActiveTab('pipelines')}
+              className={`px-3 py-1 text-sm font-bold tracking-tight rounded-t-sm transition-colors flex items-center gap-2 ${
+                activeTab === 'pipelines'
+                  ? 'bg-white text-[var(--tye-ink)] border-t border-l border-r border-[var(--tye-ink)] border-b-white'
+                  : 'text-[var(--tye-ink)] opacity-70 hover:opacity-100 border border-transparent'
+              }`}
+            >
+              <RiRocketLine /> Pipelines
             </button>
 
             {/* Dropdown for More Tools */}
@@ -495,6 +508,12 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
         {activeTab === 'pullrequests' && (
           <div className="flex-1 h-full overflow-hidden">
             <PullRequestsView repoPath={repoPath} />
+          </div>
+        )}
+
+        {activeTab === 'pipelines' && (
+          <div className="flex-1 h-full overflow-hidden">
+            <PipelineDashboard repoPath={repoPath} />
           </div>
         )}
 

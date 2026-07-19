@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { RiBuildingLine, RiShieldKeyholeLine, RiGitBranchLine, RiFileList3Line } from 'react-icons/ri';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 export const EnterpriseSettings: React.FC = () => {
-  const [dlpEnabled, setDlpEnabled] = useState(false);
-  const [branchPoliciesEnabled, setBranchPoliciesEnabled] = useState(false);
+  const [dlpEnabled, setDlpEnabled] = useLocalStorage('tye:enterprise:dlpEnabled', false);
+  const [branchPoliciesEnabled, setBranchPoliciesEnabled] = useLocalStorage('tye:enterprise:branchPoliciesEnabled', false);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto p-6 bg-[var(--tye-cream)] text-[var(--tye-ink)]">
@@ -17,7 +18,7 @@ export const EnterpriseSettings: React.FC = () => {
       <div className="flex flex-col gap-6">
         <div className="tye-card bg-white p-6">
           <div className="flex items-center gap-3 mb-4">
-            <RiShieldKeyholeLine className="w-6 h-6 text-[var(--tye-lavender)]" />
+            <RiShieldKeyholeLine className="w-6 h-6 text-[var(--tye-primary)]" />
             <h2 className="text-xl font-bold font-mono">Data Loss Prevention (DLP)</h2>
           </div>
           <p className="text-sm opacity-70 mb-4">Automatically scan commits for secrets and sensitive data before allowing them to be saved to the repository.</p>
@@ -35,7 +36,7 @@ export const EnterpriseSettings: React.FC = () => {
 
         <div className="tye-card bg-white p-6">
           <div className="flex items-center gap-3 mb-4">
-            <RiGitBranchLine className="w-6 h-6 text-[var(--tye-mustard)]" />
+            <RiGitBranchLine className="w-6 h-6 text-[var(--tye-secondary)]" />
             <h2 className="text-xl font-bold font-mono">Branch Policies</h2>
           </div>
           <p className="text-sm opacity-70 mb-4">Enforce naming conventions and restrict commits to specific branches (e.g. main/master).</p>
@@ -53,7 +54,7 @@ export const EnterpriseSettings: React.FC = () => {
 
         <div className="tye-card bg-[var(--tye-ink)] text-white p-6">
           <div className="flex items-center gap-3 mb-4">
-            <RiFileList3Line className="w-6 h-6 text-[var(--tye-mustard)]" />
+            <RiFileList3Line className="w-6 h-6 text-[var(--tye-secondary)]" />
             <h2 className="text-xl font-bold font-mono">Audit Log</h2>
           </div>
           <p className="text-sm opacity-70 mb-4">View append-only logs of all destructive actions performed in the client.</p>
