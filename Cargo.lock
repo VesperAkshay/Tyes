@@ -544,6 +544,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
+name = "conventional-commits"
+version = "0.1.0"
+dependencies = [
+ "extism-pdk",
+ "serde",
+]
+
+[[package]]
 name = "cookie"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -944,6 +952,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "debug-catcher"
+version = "0.1.0"
+dependencies = [
+ "extism-pdk",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "debugid"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1329,6 +1346,32 @@ dependencies = [
  "base64 0.22.1",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "extism-pdk"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "352fcb5a66eb74145a1c4a01f2bd15d59c62c85be73aac8471880c65b26b798f"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "extism-convert",
+ "extism-manifest",
+ "extism-pdk-derive",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "extism-pdk-derive"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d086daea5fd844e3c5ac69ddfe36df4a9a43e7218cf7d1f888182b089b09806c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -6316,6 +6359,7 @@ name = "tye-core-plugin-host"
 version = "0.1.0"
 dependencies = [
  "extism",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "tokio",
@@ -6395,6 +6439,7 @@ name = "tyegit"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "sqlx",
@@ -6403,6 +6448,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
  "tauri-plugin-shell",
+ "time",
  "tokio",
  "tye-core-events",
  "tye-core-models",

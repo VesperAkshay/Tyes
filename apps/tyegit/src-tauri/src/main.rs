@@ -219,6 +219,22 @@ async fn git_diff_get_image(path: String, file_path: String, staged: bool) -> Re
 
 #[tauri::command(rename = "git:commit_create")]
 async fn git_commit_create(path: String, req: CommitRequest, state: State<'_, AppState>) -> Result<String, String> {
+    // 1. Get the actual git diff of staged changes
+    let output = std::process::Command::new("git")
+        .arg("diff")
+        .arg("--cached")
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("Failed to run git diff: {}", e))?;
+        
+    let diff_text = String::from_utf8_lossy(&output.stdout).to_string();
+
+    // 2. Pass the real diff to the Plugin System (pre_commit hook)
+    tye_core_plugin_host::execute_pre_commit_hooks(&diff_text)?;
+
+    // 3. Pass the commit message to the Plugin System (commit_msg hook)
+    tye_core_plugin_host::execute_commit_msg_hooks(&req.message)?;
+
     create_commit(Some(&state.pool), &PathBuf::from(path), req)
         .await
         .map_err(|e| e.to_string())
@@ -633,21 +649,65 @@ async fn git_pr_list(state: tauri::State<'_, AppState>, repo_path: String) -> Re
     tye_git_engine::list_pull_requests(&state.pool, Path::new(&repo_path)).await.map_err(|e| e.to_string())
 }
 
-use tye_core_plugin_host::{PluginManifest};
+use tye_core_plugin_host::{PluginManifest, registry::PluginRegistry};
 
 #[tauri::command(rename = "git:plugin_list")]
 async fn git_plugin_list(_state: tauri::State<'_, AppState>) -> Result<Vec<PluginManifest>, String> {
-    // For now, return a mock plugin list to verify UI integration
-    Ok(vec![
-        PluginManifest {
-            name: "Linter Hook".to_string(),
-            version: "1.0.0".to_string(),
-            author: "Tyegit Team".to_string(),
-            entry_point: "plugin.wasm".to_string(),
-            permissions: vec!["fs_read".to_string()],
-            hooks: vec!["pre_commit".to_string()],
-        }
-    ])
+    let home_path = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .map_err(|_| "Could not find home directory")?;
+        
+    let plugin_dir = std::path::PathBuf::from(home_path).join(".tyegit").join("plugins");
+
+    if !plugin_dir.exists() {
+        std::fs::create_dir_all(&plugin_dir).map_err(|e| format!("Failed to create plugins directory: {}", e))?;
+    }
+
+    PluginRegistry::scan_plugins(&plugin_dir)
+}
+
+#[tauri::command(rename = "git:plugin_marketplace_list")]
+async fn git_plugin_marketplace_list() -> Result<Vec<tye_core_plugin_host::marketplace::RemotePluginManifest>, String> {
+    tye_core_plugin_host::marketplace::fetch_marketplace_plugins().await
+}
+
+#[tauri::command(rename = "git:plugin_install")]
+async fn git_plugin_install(id: String, download_url: String) -> Result<(), String> {
+    // We need to fetch the plugin manifest from the list again or pass it directly.
+    // For this refactor, we will pass a minimal mock RemotePluginManifest to install_plugin, 
+    // or ideally the frontend would just pass the whole object.
+    // Let's adapt it to use the id and download_url and fetch the rest from the marketplace list for safety.
+    let plugins = tye_core_plugin_host::marketplace::fetch_marketplace_plugins().await?;
+    let plugin = plugins.into_iter().find(|p| p.id == id).ok_or("Plugin not found in marketplace")?;
+    
+    tye_core_plugin_host::marketplace::install_plugin(plugin).await
+}
+
+#[tauri::command(rename = "git:plugin_uninstall")]
+async fn git_plugin_uninstall(id: String) -> Result<(), String> {
+    tye_core_plugin_host::marketplace::uninstall_plugin(&id).await
+}
+
+#[tauri::command(rename = "git:open_plugins_folder")]
+async fn git_open_plugins_folder() -> Result<(), String> {
+    let home_path = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .map_err(|_| "Could not find home directory")?;
+        
+    let plugin_dir = std::path::PathBuf::from(home_path).join(".tyegit").join("plugins");
+
+    if !plugin_dir.exists() {
+        std::fs::create_dir_all(&plugin_dir).map_err(|e| format!("Failed to create plugins directory: {}", e))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("explorer").arg(&plugin_dir).spawn().map_err(|e| e.to_string())?;
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open").arg(&plugin_dir).spawn().map_err(|e| e.to_string())?;
+    #[cfg(target_os = "linux")]
+    std::process::Command::new("xdg-open").arg(&plugin_dir).spawn().map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 #[tauri::command(rename = "git:hosting_create_pull_request")]
@@ -788,8 +848,12 @@ fn main() {
             git_hosting_remove_account,
             git_hosting_start_oauth,
             git_pr_list,
-            git_hosting_create_pull_request,
             git_plugin_list,
+            git_plugin_marketplace_list,
+            git_plugin_install,
+            git_plugin_uninstall,
+            git_open_plugins_folder,
+            git_hosting_create_pull_request,
             git_dashboard_aggregate,
             tauri_git_internals_get_object,
             tauri_git_internals_search_prefix,

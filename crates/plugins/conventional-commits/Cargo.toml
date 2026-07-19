@@ -1,0 +1,11 @@
+[package]
+name = "conventional-commits"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+extism-pdk = "1.0"
+serde = { version = "1.0", features = ["derive"] }
