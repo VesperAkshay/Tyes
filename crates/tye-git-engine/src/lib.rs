@@ -32,6 +32,8 @@ pub mod internals;
 pub mod plumbing;
 pub mod hosting;
 pub mod pull_requests;
+pub mod enterprise;
+pub mod audit;
 
 pub use error::GitEngineError;
 pub use installation::{GitInstallation, detect_git, set_custom_git_path, parse_git_version, check_min_version};

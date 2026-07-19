@@ -633,6 +633,23 @@ async fn git_pr_list(state: tauri::State<'_, AppState>, repo_path: String) -> Re
     tye_git_engine::list_pull_requests(&state.pool, Path::new(&repo_path)).await.map_err(|e| e.to_string())
 }
 
+use tye_core_plugin_host::{PluginManifest};
+
+#[tauri::command(rename = "git:plugin_list")]
+async fn git_plugin_list(_state: tauri::State<'_, AppState>) -> Result<Vec<PluginManifest>, String> {
+    // For now, return a mock plugin list to verify UI integration
+    Ok(vec![
+        PluginManifest {
+            name: "Linter Hook".to_string(),
+            version: "1.0.0".to_string(),
+            author: "Tyegit Team".to_string(),
+            entry_point: "plugin.wasm".to_string(),
+            permissions: vec!["fs_read".to_string()],
+            hooks: vec!["pre_commit".to_string()],
+        }
+    ])
+}
+
 #[tauri::command(rename = "git:hosting_create_pull_request")]
 async fn git_hosting_create_pull_request(
     state: tauri::State<'_, AppState>, 
@@ -772,6 +789,7 @@ fn main() {
             git_hosting_start_oauth,
             git_pr_list,
             git_hosting_create_pull_request,
+            git_plugin_list,
             git_dashboard_aggregate,
             tauri_git_internals_get_object,
             tauri_git_internals_search_prefix,

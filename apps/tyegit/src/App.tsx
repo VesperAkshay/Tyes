@@ -12,6 +12,8 @@ import { AutoDiscoveryModal } from './components/Modals/AutoDiscoveryModal';
 import { AboutModal } from './components/Modals/AboutModal';
 import { CreateWorkspaceModal } from './components/Modals/CreateWorkspaceModal';
 import { AccountCenterModal } from './components/Account/AccountCenterModal';
+import { KeyboardShortcutsModal } from './components/Modals/KeyboardShortcutsModal';
+import { CommandPalette } from './components/CommandPalette/CommandPalette';
 import { HostingAccount } from './types';
 import { 
   RiDashboardLine, 
@@ -26,7 +28,8 @@ import {
   RiAddLine,
   RiGitCommitLine,
   RiDeleteBin6Line,
-  RiUser3Line
+  RiUser3Line,
+  RiKeyboardBoxLine
 } from 'react-icons/ri';
 import tyegitLogo from './assets/logo.png';
 
@@ -41,13 +44,89 @@ export default function App() {
   
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+      // Don't trigger global shortcuts when typing in inputs/textareas
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
+        return;
+      }
+
+      const ctrlOrCmd = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+
+      // Toggle Sidebar (Ctrl+B)
+      if (ctrlOrCmd && !e.shiftKey && key === 'b') {
         e.preventDefault();
         setIsSidebarCollapsed(prev => !prev);
+        return;
+      }
+
+      // Configuration Engine (Ctrl+,)
+      if (ctrlOrCmd && !e.shiftKey && key === ',') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('tye:cmd:settings'));
+        return;
+      }
+
+      // Keyboard Shortcuts (Ctrl+/)
+      if (ctrlOrCmd && !e.shiftKey && key === '/') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('tye:cmd:shortcuts'));
+        return;
+      }
+
+      // Open Time Machine (Ctrl+T)
+      if (ctrlOrCmd && !e.shiftKey && key === 't') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('tye:cmd:time_machine'));
+        return;
+      }
+
+      // With Shift Modifiers
+      if (ctrlOrCmd && e.shiftKey) {
+        switch (key) {
+          case 'i':
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('tye:cmd:init'));
+            break;
+          case 'c':
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('tye:cmd:clone'));
+            break;
+          case 's':
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('tye:cmd:scan'));
+            break;
+          case 'n':
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('tye:cmd:workspace_new'));
+            break;
+          case 'm':
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('tye:cmd:maintenance'));
+            break;
+          case 'a':
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('tye:cmd:about'));
+            break;
+          case 'f':
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('tye:cmd:fetch'));
+            break;
+        }
       }
     };
+    
+    const handleOpenSettings = () => setActiveView('config');
+    const handleReturnRepo = () => setActiveView('workspace');
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('tye:cmd:settings', handleOpenSettings);
+    window.addEventListener('tye:cmd:return_repo', handleReturnRepo);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('tye:cmd:settings', handleOpenSettings);
+      window.removeEventListener('tye:cmd:return_repo', handleReturnRepo);
+    };
   }, []);
   
   // Modal toggles
@@ -56,8 +135,34 @@ export default function App() {
   const [showScanModal, setShowScanModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showCreateWorkspaceModal, setShowCreateWorkspaceModal] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showAccountCenter, setShowAccountCenter] = useState(false);
   const [primaryAccount, setPrimaryAccount] = useState<HostingAccount | null>(null);
+
+  useEffect(() => {
+    const handleInit = () => setShowInitModal(true);
+    const handleClone = () => setShowCloneModal(true);
+    const handleScan = () => setShowScanModal(true);
+    const handleWorkspaceNew = () => setShowCreateWorkspaceModal(true);
+    const handleAbout = () => setShowAboutModal(true);
+    const handleShortcuts = () => setShowShortcutsModal(true);
+
+    window.addEventListener('tye:cmd:init', handleInit);
+    window.addEventListener('tye:cmd:clone', handleClone);
+    window.addEventListener('tye:cmd:scan', handleScan);
+    window.addEventListener('tye:cmd:workspace_new', handleWorkspaceNew);
+    window.addEventListener('tye:cmd:about', handleAbout);
+    window.addEventListener('tye:cmd:shortcuts', handleShortcuts);
+
+    return () => {
+      window.removeEventListener('tye:cmd:init', handleInit);
+      window.removeEventListener('tye:cmd:clone', handleClone);
+      window.removeEventListener('tye:cmd:scan', handleScan);
+      window.removeEventListener('tye:cmd:workspace_new', handleWorkspaceNew);
+      window.removeEventListener('tye:cmd:about', handleAbout);
+      window.removeEventListener('tye:cmd:shortcuts', handleShortcuts);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchPrimaryAccount = async () => {
@@ -275,6 +380,15 @@ export default function App() {
               )}
             </button>
 
+            {/* Keyboard Shortcuts Button */}
+            <button
+              onClick={() => setShowShortcutsModal(true)}
+              className="mb-2 p-2 border-2 border-transparent text-[var(--tye-ink)]/50 hover:text-[var(--tye-ink)] hover:bg-[var(--tye-cream)] transition-all flex items-center justify-center w-full group"
+              title="Keyboard Shortcuts (Ctrl+Shift+P)"
+            >
+              <RiKeyboardBoxLine className="w-5 h-5 group-hover:scale-110 transition-transform text-[var(--tye-lavender)]" />
+            </button>
+
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               className="p-2 border-2 border-transparent text-[var(--tye-ink)]/50 hover:text-[var(--tye-ink)] hover:bg-[var(--tye-cream)] transition-all flex items-center justify-center w-full group"
@@ -390,6 +504,15 @@ export default function App() {
           }}
         />
       )}
+      
+      {showShortcutsModal && (
+        <KeyboardShortcutsModal onClose={() => setShowShortcutsModal(false)} />
+      )}
+      
+      <CommandPalette 
+        inWorkspace={activeView === 'workspace' && !!activeRepoPath} 
+        activeRepoPath={activeRepoPath} 
+      />
     </AppShell>
   );
 }

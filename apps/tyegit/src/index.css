@@ -11,7 +11,7 @@
   --font-departure: "Departure Mono", monospace;
 }
 
-:root {
+:root, [data-theme="classic"] {
   --tye-cream: #EDE8DC;
   --tye-ink: #1A1A1A;
   --tye-lavender: #8B85C4;
@@ -19,6 +19,22 @@
   --tye-font-sans: "Geist Sans", sans-serif;
   --tye-font-mono: "Geist Mono", monospace;
   --tye-font-display: "Geist Pixel", sans-serif;
+}
+
+[data-theme="midnight"] {
+  --tye-cream: #121212;
+  --tye-ink: #EDE8DC;
+  --tye-lavender: #9993D6;
+  --tye-mustard: #E5B55A;
+}
+
+[data-theme="crt"] {
+  --tye-cream: #000000;
+  --tye-ink: #FFB000;
+  --tye-lavender: #FF9000;
+  --tye-mustard: #FFB000;
+  --tye-font-sans: "Departure Mono", monospace;
+  --tye-font-display: "Departure Mono", monospace;
 }
 
 body {

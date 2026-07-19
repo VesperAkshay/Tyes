@@ -6,8 +6,12 @@ interface ConfigTabsProps {
   activeRepoPath?: string | null;
 }
 
+import { PluginManager } from './PluginManager';
+import { ThemeSettings } from './ThemeSettings';
+import { EnterpriseSettings } from './EnterpriseSettings';
+
 export const ConfigTabs: React.FC<ConfigTabsProps> = ({ activeRepoPath }) => {
-  const [activeTab, setActiveTab] = useState<'system' | 'global' | 'local' | 'install'>('global');
+  const [activeTab, setActiveTab] = useState<'system' | 'global' | 'local' | 'install' | 'plugins' | 'theme' | 'enterprise'>('global');
   const [installation, setInstallation] = useState<GitInstallation | null>(null);
   const [systemEntries, setSystemEntries] = useState<GitConfigEntry[]>([]);
   const [globalEntries, setGlobalEntries] = useState<GitConfigEntry[]>([]);
@@ -221,6 +225,30 @@ export const ConfigTabs: React.FC<ConfigTabsProps> = ({ activeRepoPath }) => {
           }`}
         >
           Git Installation
+        </button>
+        <button
+          onClick={() => setActiveTab('plugins')}
+          className={`px-4 py-2 font-bold transition-colors ${
+            activeTab === 'plugins' ? 'bg-[var(--tye-lavender)] border-2 border-[var(--tye-ink)] shadow-[2px_2px_0px_0px_var(--tye-ink)]' : 'hover:bg-white/50'
+          }`}
+        >
+          Plugins
+        </button>
+        <button
+          onClick={() => setActiveTab('theme')}
+          className={`px-4 py-2 font-bold transition-colors ${
+            activeTab === 'theme' ? 'bg-[var(--tye-lavender)] border-2 border-[var(--tye-ink)] shadow-[2px_2px_0px_0px_var(--tye-ink)]' : 'hover:bg-white/50'
+          }`}
+        >
+          Appearance
+        </button>
+        <button
+          onClick={() => setActiveTab('enterprise')}
+          className={`px-4 py-2 font-bold transition-colors ${
+            activeTab === 'enterprise' ? 'bg-[var(--tye-lavender)] border-2 border-[var(--tye-ink)] shadow-[2px_2px_0px_0px_var(--tye-ink)]' : 'hover:bg-white/50'
+          }`}
+        >
+          Enterprise
         </button>
       </div>
 
@@ -498,6 +526,21 @@ export const ConfigTabs: React.FC<ConfigTabsProps> = ({ activeRepoPath }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Tab 5: Plugins */}
+      {activeTab === 'plugins' && (
+        <PluginManager />
+      )}
+
+      {/* Tab 7: Theme */}
+      {activeTab === 'theme' && (
+        <ThemeSettings />
+      )}
+
+      {/* Tab 8: Enterprise */}
+      {activeTab === 'enterprise' && (
+        <EnterpriseSettings />
       )}
 
     </div>

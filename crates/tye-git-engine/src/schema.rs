@@ -19,6 +19,30 @@ pub async fn run_migrations(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
             created_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS global_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at DATETIME NOT NULL
+        );
+
+        -- F-058 Enterprise Features
+        CREATE TABLE IF NOT EXISTS enterprise_policies (
+            id TEXT PRIMARY KEY,
+            require_issue_id BOOLEAN NOT NULL DEFAULT 0,
+            enforce_no_force_push BOOLEAN NOT NULL DEFAULT 0,
+            dlp_enabled BOOLEAN NOT NULL DEFAULT 0,
+            updated_at DATETIME NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id TEXT PRIMARY KEY,
+            timestamp DATETIME NOT NULL,
+            action TEXT NOT NULL,
+            user TEXT NOT NULL,
+            resource TEXT NOT NULL,
+            details TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS git_settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL,

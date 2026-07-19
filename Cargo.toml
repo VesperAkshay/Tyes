@@ -7,7 +7,7 @@ members = [
   "crates/tye-core-events",
   "crates/tye-phase0-verify",
   "crates/tye-git-engine",
-  "apps/tyegit/src-tauri",
+  "apps/tyegit/src-tauri", "crates/tye-core-plugin-host",
 ]
 
 [workspace.dependencies]
@@ -25,3 +25,4 @@ tye-core-storage = { path = "crates/tye-core-storage" }
 tye-core-vault = { path = "crates/tye-core-vault" }
 tye-core-events = { path = "crates/tye-core-events" }
 tye-git-engine = { path = "crates/tye-git-engine" }
+tye-core-plugin-host = { path = "crates/tye-core-plugin-host" }

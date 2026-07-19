@@ -24,4 +24,5 @@ tye-core-storage.workspace = true
 tye-core-vault.workspace = true
 tye-core-events.workspace = true
 tye-git-engine.workspace = true
+tye-core-plugin-host.workspace = true
 tauri-plugin-fs = "2"

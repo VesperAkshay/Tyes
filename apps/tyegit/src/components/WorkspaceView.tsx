@@ -97,6 +97,34 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
     }
   }, [repoPath, refreshTrigger]);
 
+  useEffect(() => {
+    const handleCmdCommit = () => setActiveTab('changes');
+    const handleCmdTimeMachine = () => setActiveTab('timemachine');
+    const handleCmdMaintenance = () => setActiveTab('maintenance');
+    const handleCmdFetch = () => setShowRemoteModal(true); // For fetch & pull
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        setActiveTab('timemachine');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('tye:cmd:commit', handleCmdCommit);
+    window.addEventListener('tye:cmd:time_machine', handleCmdTimeMachine);
+    window.addEventListener('tye:cmd:maintenance', handleCmdMaintenance);
+    window.addEventListener('tye:cmd:fetch', handleCmdFetch);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('tye:cmd:commit', handleCmdCommit);
+      window.removeEventListener('tye:cmd:time_machine', handleCmdTimeMachine);
+      window.removeEventListener('tye:cmd:maintenance', handleCmdMaintenance);
+      window.removeEventListener('tye:cmd:fetch', handleCmdFetch);
+    };
+  }, []);
+
   const handleOpenMergeModal = async () => {
     try {
       const data: BranchList = await invoke('git:get_branches', { repoPath });
