@@ -1,0 +1,39 @@
+name: "Clean R2 Release Folder (Manual)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag folder to clean (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  clean-junk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove Junk from R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_REGION: auto
+        run: |
+          ENDPOINT="https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+          TARGET="s3://tyegit/releases/${{ github.event.inputs.version }}/"
+          
+          echo "Cleaning raw bundle junk from $TARGET..."
+          
+          # Delete everything recursively EXCEPT the final installer and signature files
+          aws s3 rm $TARGET --endpoint-url $ENDPOINT --recursive \
+            --exclude "*.exe" \
+            --exclude "*.exe.sig" \
+            --exclude "*.msi" \
+            --exclude "*.msi.sig" \
+            --exclude "*.dmg" \
+            --exclude "*.tar.gz" \
+            --exclude "*.tar.gz.sig" \
+            --exclude "*.AppImage" \
+            --exclude "*.AppImage.sig" \
+            --exclude "*.deb"
+          
+          echo "Cleanup complete! Only final installers and signatures remain."

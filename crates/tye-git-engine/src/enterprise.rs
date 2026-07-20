@@ -1,4 +1,3 @@
-use std::path::Path;
 
 pub struct BranchPolicy {
     pub require_issue_id: bool,
