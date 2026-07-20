@@ -27,7 +27,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://download.tyes.dev/latest.json"
+        "https://release.tyes.dev/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBMUYyNTExMDZBNDk1NjAKUldSZ2xhUUdFU1VmK2pRUFJmd3puVzRHMXgwS0R4UDlOTnF3WnNuejlOMThLbURiNW1NVnZHYXEK",
       "dialog": false

@@ -53,3 +53,7 @@ Test.txt
 *.key
 *.key.pub
 
+# Env files
+.env
+.env.*
+
