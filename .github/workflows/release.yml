@@ -137,5 +137,15 @@ jobs:
 
           # Upload latest.json directly to R2 root
           aws s3 cp latest.json s3://tyegit/latest.json \
-            --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com \
+            --endpoint-url $ENDPOINT \
             --cache-control "no-cache, no-store, must-revalidate"
+
+          echo "Copying installers to /latest/ for the website..."
+          # Windows
+          aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/nsis/Tyegit_${VERSION}_x64-setup.exe s3://tyegit/latest/TyeGit-Windows-x64.exe --endpoint-url $ENDPOINT || true
+          
+          # macOS (Apple Silicon)
+          aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/dmg/Tyegit_${VERSION}_aarch64.dmg s3://tyegit/latest/TyeGit-Mac-Silicon.dmg --endpoint-url $ENDPOINT || true
+          
+          # Linux
+          aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/appimage/Tyegit_${VERSION}_amd64.AppImage s3://tyegit/latest/TyeGit-Linux-x64.AppImage --endpoint-url $ENDPOINT || true
