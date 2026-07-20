@@ -48,3 +48,8 @@ tye_phase0_verify_*
 
 .agents
 Test.txt
+
+# Tauri Signer Keys
+*.key
+*.key.pub
+

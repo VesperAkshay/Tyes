@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { watch } from '@tauri-apps/plugin-fs';
@@ -67,7 +68,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
   const [stagedCount, setStagedCount] = useState<number>(0);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   const [statusBanner, setStatusBanner] = useState<{ text: string; isError?: boolean } | null>(null);
-
+  const [cicdEnabled] = useLocalStorage('tye:features:cicdEnabled', true);
   const showStatus = (text: string, isError = false) => {
     setStatusBanner({ text, isError });
     setTimeout(() => setStatusBanner(null), 5000);
@@ -289,16 +290,18 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({ repoPath, onClose 
               <RiGitPullRequestLine /> PRs
             </button>
 
-            <button
-              onClick={() => setActiveTab('pipelines')}
-              className={`px-3 py-1 text-sm font-bold tracking-tight rounded-t-sm transition-colors flex items-center gap-2 ${
-                activeTab === 'pipelines'
-                  ? 'bg-white text-[var(--tye-ink)] border-t border-l border-r border-[var(--tye-ink)] border-b-white'
-                  : 'text-[var(--tye-ink)] opacity-70 hover:opacity-100 border border-transparent'
-              }`}
-            >
-              <RiRocketLine /> Pipelines
-            </button>
+            {cicdEnabled && (
+              <button
+                onClick={() => setActiveTab('pipelines')}
+                className={`px-3 py-1 text-sm font-bold tracking-tight rounded-t-sm transition-colors flex items-center gap-2 ${
+                  activeTab === 'pipelines'
+                    ? 'bg-white text-[var(--tye-ink)] border-t border-l border-r border-[var(--tye-ink)] border-b-white'
+                    : 'text-[var(--tye-ink)] opacity-70 hover:opacity-100 border border-transparent'
+                }`}
+              >
+                <RiRocketLine /> Pipelines
+              </button>
+            )}
 
             {/* Dropdown for More Tools */}
             <div className="relative">

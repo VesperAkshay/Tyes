@@ -29,12 +29,14 @@ import {
   RiGitCommitLine,
   RiDeleteBin6Line,
   RiUser3Line,
-  RiKeyboardBoxLine
+  RiKeyboardBoxLine,
+  RiBuildingLine
 } from 'react-icons/ri';
 import tyegitLogo from './assets/logo.png';
+import { EnterpriseSettings } from './components/Settings/EnterpriseSettings';
 
 export default function App() {
-  const [activeView, setActiveView] = useState<'dashboard' | 'config' | 'ssh' | 'workspace'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'config' | 'ssh' | 'workspace' | 'enterprise'>('dashboard');
   const [activeRepoPath, setActiveRepoPath] = useState<string | null>(null);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [groups, setGroups] = useState<any[]>([]);
@@ -348,6 +350,19 @@ export default function App() {
               </button>
 
               <button
+                onClick={() => setActiveView('enterprise')}
+                title="Enterprise Module (`F-058`)"
+                className={`flex items-center gap-3 py-2.5 font-bold transition-all ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'} ${
+                  activeView === 'enterprise'
+                    ? 'bg-[var(--tye-ink)] text-[var(--tye-mustard)] shadow-[3px_3px_0px_0px_var(--tye-primary)] translate-x-1 border border-[var(--tye-primary)]'
+                    : 'hover:bg-[var(--tye-cream)] hover:translate-x-1'
+                }`}
+              >
+                <RiBuildingLine className="w-5 h-5 text-[var(--tye-primary)] flex-shrink-0" />
+                {!isSidebarCollapsed && <span>Enterprise (`F-058`)</span>}
+              </button>
+
+              <button
                 onClick={() => setShowAboutModal(true)}
                 title="About Tyegit"
                 className={`flex items-center gap-3 py-2.5 font-bold transition-all ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'} hover:bg-[var(--tye-cream)] hover:translate-x-1`}
@@ -413,6 +428,7 @@ export default function App() {
           )}
           {activeView === 'config' && <ConfigTabs activeRepoPath={activeRepoPath} />}
           {activeView === 'ssh' && <SshKeyManager />}
+          {activeView === 'enterprise' && <EnterpriseSettings />}
           {activeView === 'workspace' && activeRepoPath && (
             <WorkspaceView
               repoPath={activeRepoPath}

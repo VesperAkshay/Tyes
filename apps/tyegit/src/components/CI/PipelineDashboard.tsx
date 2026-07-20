@@ -30,18 +30,28 @@ export const PipelineDashboard: React.FC<PipelineDashboardProps> = ({ repoPath }
   const [selectedJob, setSelectedJob] = useState<{ id: string, name: string } | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState<'variable' | 'secret' | null>(null);
 
-  const fetchRuns = async () => {
+  const [lastFetch, setLastFetch] = useState<number>(0);
+
+  const fetchRuns = async (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastFetch < 10000) return; // 10s cooldown
+    
     setLoading(true);
     setError(null);
     try {
       const data = await invoke<CicdRun[]>('git:cicd_get_runs', { repoPath });
       setRuns(data);
-      if (data.length > 0) {
+      if (data.length > 0 && !selectedRun) {
         setSelectedRun(data[0].id);
         fetchJobs(data[0].id);
       }
+      setLastFetch(now);
     } catch (err: any) {
-      setError(err);
+      if (err.toString().includes('403')) {
+        setError("GitHub API Rate Limit Exceeded. Please try again later or provide a personal access token.");
+      } else {
+        setError(err);
+      }
     } finally {
       setLoading(false);
     }
@@ -138,23 +148,23 @@ export const PipelineDashboard: React.FC<PipelineDashboardProps> = ({ repoPath }
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <div className="flex items-center justify-between p-4 border-b-2 border-[var(--tye-ink)] bg-[var(--tye-cream)]">
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            {activeTab === 'runs' && 'Pipeline Runs'}
+            {activeTab === 'runs' && 'CI/CD Pipeline Runs'}
             {activeTab === 'variables' && 'Repository Variables'}
-            {activeTab === 'secrets' && 'Repository Secrets'}
+            {activeTab === 'secrets' && 'Encrypted Secrets'}
           </h1>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                if (activeTab === 'runs') fetchRuns();
-                else if (activeTab === 'variables') fetchVariables();
-                else if (activeTab === 'secrets') fetchSecrets();
-              }}
-              className="px-3 py-1.5 bg-white border-2 border-[var(--tye-ink)] shadow-[2px_2px_0px_0px_var(--tye-ink)] hover:-translate-y-[1px] hover:shadow-[3px_3px_0px_0px_var(--tye-ink)] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_var(--tye-ink)] transition-all font-bold flex items-center gap-1"
-            >
-              <RiRefreshLine /> Refresh
-            </button>
+          <div className="flex items-center gap-3">
+            {activeTab === 'runs' && (
+              <button 
+                onClick={() => fetchRuns(true)}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-[var(--tye-ink)] font-bold border-2 border-[var(--tye-ink)] rounded hover:bg-gray-50 active:translate-y-0.5 shadow-[2px_2px_0px_0px_var(--tye-primary)] disabled:opacity-50"
+              >
+                <RiRefreshLine className={loading ? 'animate-spin' : ''} /> 
+                {loading ? 'Refreshing...' : 'Refresh Data'}
+              </button>
+            )}
             {activeTab === 'variables' && (
-              <button
+              <button 
                 onClick={() => setShowSettingsModal('variable')}
                 className="px-3 py-1.5 bg-[var(--tye-primary)] text-white border-2 border-[var(--tye-ink)] shadow-[2px_2px_0px_0px_var(--tye-ink)] hover:-translate-y-[1px] active:translate-y-[1px] transition-all font-bold flex items-center gap-1"
               >

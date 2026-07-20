@@ -1,4 +1,3 @@
-use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Sqlite};
 use thiserror::Error;

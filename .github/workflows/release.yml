@@ -1,0 +1,114 @@
+name: "Release Tyegit to R2"
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+          - platform: 'windows-latest'
+            args: ''
+          - platform: 'ubuntu-22.04'
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js & pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies (Ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Build & Sign Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          action: "build"
+          projectPath: "./apps/tyegit"
+
+      - name: Upload Binaries to Cloudflare R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_EC2_METADATA_DISABLED: true
+        run: |
+          # Use AWS CLI with Cloudflare R2 S3-compatible endpoint
+          aws s3 sync ./apps/tyegit/src-tauri/target/release/bundle/ \
+            s3://tyes-releases/releases/${{ github.ref_name }}/ \
+            --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+
+  update-manifest:
+    needs: build-tauri
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate latest.json for Updater & Website
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          
+          # Fetch signature contents from R2
+          WIN_EXE_SIG=$(aws s3 cp s3://tyes-releases/releases/${GITHUB_REF_NAME}/nsis/Tyegit_${VERSION}_x64-setup.exe.sig - --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com)
+          WIN_MSI_SIG=$(aws s3 cp s3://tyes-releases/releases/${GITHUB_REF_NAME}/msi/Tyegit_${VERSION}_x64_en-US.msi.sig - --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com)
+          MAC_DMG_SIG=$(aws s3 cp s3://tyes-releases/releases/${GITHUB_REF_NAME}/dmg/Tyegit_${VERSION}_aarch64.dmg.sig - --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com)
+          LINUX_APPIMAGE_SIG=$(aws s3 cp s3://tyes-releases/releases/${GITHUB_REF_NAME}/appimage/Tyegit_${VERSION}_amd64.AppImage.sig - --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com)
+          LINUX_DEB_SIG=$(aws s3 cp s3://tyes-releases/releases/${GITHUB_REF_NAME}/deb/tyegit_${VERSION}_amd64.deb.sig - --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com)
+
+          cat <<EOF > latest.json
+          {
+            "version": "${VERSION}",
+            "notes": "Tyegit release ${GITHUB_REF_NAME}",
+            "pub_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "platforms": {
+              "windows-x86_64": {
+                "signature": "${WIN_EXE_SIG}",
+                "url": "https://download.tyes.dev/releases/${GITHUB_REF_NAME}/nsis/Tyegit_${VERSION}_x64-setup.exe"
+              },
+              "windows-x86_64-msi": {
+                "signature": "${WIN_MSI_SIG}",
+                "url": "https://download.tyes.dev/releases/${GITHUB_REF_NAME}/msi/Tyegit_${VERSION}_x64_en-US.msi"
+              },
+              "darwin-aarch64": {
+                "signature": "${MAC_DMG_SIG}",
+                "url": "https://download.tyes.dev/releases/${GITHUB_REF_NAME}/dmg/Tyegit_${VERSION}_aarch64.dmg"
+              },
+              "linux-x86_64": {
+                "signature": "${LINUX_APPIMAGE_SIG}",
+                "url": "https://download.tyes.dev/releases/${GITHUB_REF_NAME}/appimage/Tyegit_${VERSION}_amd64.AppImage"
+              },
+              "linux-x86_64-deb": {
+                "signature": "${LINUX_DEB_SIG}",
+                "url": "https://download.tyes.dev/releases/${GITHUB_REF_NAME}/deb/tyegit_${VERSION}_amd64.deb"
+              }
+            }
+          }
+          EOF
+
+          # Upload latest.json directly to R2 root
+          aws s3 cp latest.json s3://tyes-releases/latest.json \
+            --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com \
+            --cache-control "no-cache, no-store, must-revalidate"

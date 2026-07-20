@@ -30,6 +30,7 @@ async fn setup_test_repo(test_name: &str) -> (PathBuf, SqlitePool) {
         signoff: false,
         co_authors: vec![],
         commit_type: "Normal".to_string(),
+        dlp_enabled: false,
     }).await.unwrap();
 
     (path, pool)
@@ -55,6 +56,7 @@ async fn test_checkpoint_capture_and_rollback() {
         signoff: false,
         co_authors: vec![],
         commit_type: "Normal".to_string(),
+        dlp_enabled: false,
     }).await.unwrap();
 
     // Now rollback to cp1
@@ -126,6 +128,7 @@ async fn test_upgrade3_sandbox_preview() {
         signoff: false,
         co_authors: vec![],
         commit_type: "Normal".to_string(),
+        dlp_enabled: false,
     }).await.unwrap();
 
     let preview = preview_rollback_impact(&pool, &repo_path, &cp1.id).await.unwrap();

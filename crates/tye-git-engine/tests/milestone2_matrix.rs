@@ -82,6 +82,7 @@ async fn test_git_status_and_staging_matrix() {
         signoff: false,
         co_authors: vec![],
         commit_type: "Normal".to_string(),
+        dlp_enabled: false,
     };
     create_commit(Some(&pool), &repo_path, req).await.expect("initial commit failed");
 
@@ -119,6 +120,7 @@ async fn test_git_diff_matrix() {
         signoff: false,
         co_authors: vec![],
         commit_type: "Normal".to_string(),
+        dlp_enabled: false,
     }).await.unwrap();
 
     // Modify file
@@ -169,6 +171,7 @@ async fn test_git_discard_changes_recycle_bin() {
         signoff: false,
         co_authors: vec![],
         commit_type: "Normal".to_string(),
+        dlp_enabled: false,
     }).await.unwrap();
 
     fs::write(repo_path.join("tracked.txt"), "corrupted content\n").unwrap();
@@ -209,6 +212,7 @@ async fn test_git_commit_and_history_matrix() {
         signoff: true,
         co_authors: vec!["Jane Doe <jane@tyegit.dev>".to_string()],
         commit_type: "Normal".to_string(),
+        dlp_enabled: false,
     };
     let oid1 = create_commit(Some(&pool), &repo_path, req).await.expect("create_commit failed");
     assert_eq!(oid1.len(), 40);
@@ -232,6 +236,7 @@ async fn test_git_commit_and_history_matrix() {
         signoff: false,
         co_authors: vec![],
         commit_type: "Normal".to_string(),
+        dlp_enabled: false,
     };
     let oid_amended = create_commit(Some(&pool), &repo_path, req_amend).await.expect("amend commit failed");
     assert_ne!(oid1, oid_amended);
@@ -279,6 +284,7 @@ async fn test_git_stage_patch_matrix() {
         signoff: false,
         co_authors: vec![],
         commit_type: "Normal".to_string(),
+        dlp_enabled: false,
     }).await.unwrap();
 
     // Modify two separate lines (`line 2 modified` and `line 4 modified`)

@@ -4,7 +4,7 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 export const EnterpriseSettings: React.FC = () => {
   const [dlpEnabled, setDlpEnabled] = useLocalStorage('tye:enterprise:dlpEnabled', false);
-  const [branchPoliciesEnabled, setBranchPoliciesEnabled] = useLocalStorage('tye:enterprise:branchPoliciesEnabled', false);
+  const [cicdEnabled, setCicdEnabled] = useLocalStorage('tye:features:cicdEnabled', true);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto p-6 bg-[var(--tye-cream)] text-[var(--tye-ink)]">
@@ -34,31 +34,22 @@ export const EnterpriseSettings: React.FC = () => {
           </label>
         </div>
 
-        <div className="tye-card bg-white p-6">
+        <div className="tye-card bg-white p-6 border-l-4 border-[var(--tye-lavender)]">
           <div className="flex items-center gap-3 mb-4">
-            <RiGitBranchLine className="w-6 h-6 text-[var(--tye-secondary)]" />
-            <h2 className="text-xl font-bold font-mono">Branch Policies</h2>
+            <RiFileList3Line className="w-6 h-6 text-[var(--tye-lavender)]" />
+            <h2 className="text-xl font-bold font-mono">CI/CD Pipeline Dashboard (Feature Flag)</h2>
           </div>
-          <p className="text-sm opacity-70 mb-4">Enforce naming conventions and restrict commits to specific branches (e.g. main/master).</p>
+          <p className="text-sm opacity-70 mb-4">Display the advanced CI/CD Dashboard tab to monitor GitHub Actions and manage encrypted secrets.</p>
           
           <label className="flex items-center gap-2 cursor-pointer font-bold">
             <input 
               type="checkbox" 
-              checked={branchPoliciesEnabled} 
-              onChange={e => setBranchPoliciesEnabled(e.target.checked)} 
+              checked={cicdEnabled} 
+              onChange={e => setCicdEnabled(e.target.checked)} 
               className="w-4 h-4 accent-[var(--tye-ink)]"
             />
-            Require Issue ID in branch names (e.g. feat/TYE-123-new-button)
+            Enable CI/CD Pipeline Dashboard
           </label>
-        </div>
-
-        <div className="tye-card bg-[var(--tye-ink)] text-white p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <RiFileList3Line className="w-6 h-6 text-[var(--tye-secondary)]" />
-            <h2 className="text-xl font-bold font-mono">Audit Log</h2>
-          </div>
-          <p className="text-sm opacity-70 mb-4">View append-only logs of all destructive actions performed in the client.</p>
-          <button className="tye-btn bg-white text-[var(--tye-ink)] font-bold">Export Audit Log (CSV)</button>
         </div>
       </div>
     </div>
