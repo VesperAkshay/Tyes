@@ -61,4 +61,7 @@ pub enum GitEngineError {
 
     #[error("Rebase error: {0}")]
     RebaseError(String),
+
+    #[error("Internal error: {0}")]
+    Internal(String),
 }

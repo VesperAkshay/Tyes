@@ -10,6 +10,7 @@ import {
   RiLinksLine,
 } from 'react-icons/ri';
 import { MaterialFileIcon } from '../UI/MaterialFileIcon';
+import { XhareModal } from '../Modals/XhareModal';
 
 interface CommitDetailModalProps {
   repoPath: string;
@@ -38,6 +39,7 @@ export const CommitDetailModal: React.FC<CommitDetailModalProps> = ({
     message: string;
     onConfirm: () => void;
   } | null>(null);
+  const [showXhareModal, setShowXhareModal] = useState(false);
 
   useEffect(() => {
     if (!commitId) {
@@ -248,6 +250,13 @@ export const CommitDetailModal: React.FC<CommitDetailModalProps> = ({
             >
               Cherry-Pick (`F-037`)
             </button>
+            <button
+              onClick={() => setShowXhareModal(true)}
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-amber-950 font-mono text-xs font-bold rounded shadow-[2px_2px_0px_var(--tye-ink)] transition-transform active:scale-95 flex items-center gap-2"
+              title="Export this commit cleanly and share via TyeXhare"
+            >
+              📦 Archive & Share
+            </button>
 
             <button
               onClick={() => {
@@ -332,6 +341,13 @@ export const CommitDetailModal: React.FC<CommitDetailModalProps> = ({
           </button>
         </div>
       </div>
+      {showXhareModal && (
+        <XhareModal
+          repoPath={repoPath}
+          commitId={detail!.id}
+          onClose={() => setShowXhareModal(false)}
+        />
+      )}
     </div>
   );
 };

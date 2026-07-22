@@ -30,3 +30,4 @@ tye-core-plugin-host.workspace = true
 tauri-plugin-fs = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tye-xhare-core = { path = "../../../crates/tye-xhare-core" }

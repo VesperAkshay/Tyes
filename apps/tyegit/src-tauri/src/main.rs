@@ -909,9 +909,103 @@ fn main() {
             tauri_git_internals_get_object,
             tauri_git_internals_search_prefix,
             tauri_git_internals_get_tree,
+            git_archive_and_share,
             tauri_git_plumbing_execute_safe,
             tauri_git_plumbing_execute_dangerous,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[derive(Clone, serde::Serialize)]
+pub enum TransferPayload {
+    Log { message: String },
+    Progress { sent: u64, total: u64, speed: String },
+    Prompt { message: String },
+    Complete { message: String },
+    Error { message: String },
+    CodeGenerated { code: String },
+    RelayStatus { running: bool, ports: String },
+}
+
+#[tauri::command(rename = "git:archive_and_share")]
+async fn git_archive_and_share(
+    repo_path: String,
+    commit_id: String,
+    app_handle: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    use std::path::PathBuf;
+    use tye_xhare_core::utils::{get_random_name, sha256};
+    use tye_xhare_core::ui_event::{EventSender, UiEvent};
+    use tauri::Emitter;
+    
+    // 1. Create a unique temp file path
+    let tmp_dir = std::env::temp_dir();
+    let archive_path = tmp_dir.join(format!("tyegit-archive-{}.zip", commit_id));
+
+    // 2. Generate the ZIP archive using tye-git-engine
+    tye_git_engine::create_archive(&PathBuf::from(&repo_path), &commit_id, &archive_path)
+        .map_err(|e| e.to_string())?;
+
+    // 3. Generate sharing code and initialize Xhare sender
+    let shared_secret = get_random_name();
+    let prefix = if shared_secret.len() >= 4 { &shared_secret[..4] } else { &shared_secret };
+    let room_name = sha256(&format!("{}croc", prefix));
+    
+    let relay_address = "tyexhare.tyes.dev:9009"; // or config
+    let relay_password = "pass123";
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<UiEvent>(100);
+    let ui_sender = EventSender::new(Some(tx));
+
+    let app = app_handle.clone();
+    tokio::spawn(async move {
+        while let Some(event) = rx.recv().await {
+            match event {
+                UiEvent::Log(message) => {
+                    println!("Xhare Log: {}", message);
+                    let _ = app.emit("transfer-event", TransferPayload::Log { message });
+                }
+                UiEvent::Progress { filename: _, total, current } => {
+                    let _ = app.emit("transfer-event", TransferPayload::Progress { sent: current, total, speed: "0 Mbps".to_string() });
+                }
+                UiEvent::Done(message) => {
+                    let _ = app.emit("transfer-event", TransferPayload::Complete { message });
+                }
+                UiEvent::Error(message) => {
+                    let _ = app.emit("transfer-event", TransferPayload::Error { message });
+                }
+                UiEvent::Prompt { msg, reply } => {
+                    let _ = app.emit("transfer-event", TransferPayload::Prompt { message: msg });
+                    let _ = reply.send(true);
+                }
+            }
+        }
+    });
+
+    let files = vec![archive_path.to_string_lossy().to_string()];
+    let secret_clone = shared_secret.clone();
+
+    // Spawn the sender in the background so it doesn't block Tauri
+    tokio::spawn(async move {
+        if let Err(e) = tye_xhare_core::sender::send(
+            files,
+            None,
+            relay_address,
+            relay_password,
+            &room_name,
+            &secret_clone,
+            ui_sender.clone(),
+        ).await {
+            if let Some(tx) = &ui_sender.tx {
+                let _ = tx.send(UiEvent::Error(format!("Sender failed: {}", e))).await;
+            }
+            eprintln!("Sender failed: {}", e);
+        }
+        // Optionally delete the temp zip file here after completion
+        let _ = tokio::fs::remove_file(&archive_path).await;
+    });
+
+    Ok(shared_secret)
 }

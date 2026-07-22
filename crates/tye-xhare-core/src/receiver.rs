@@ -100,7 +100,15 @@ pub async fn receive(
         return Err("expected FileInfo message from sender".into());
     }
     
-    let sender_info: SenderInfo = serde_json::from_slice(&info_msg.bytes.unwrap_or_default())
+    let json_bytes = if let Some(ref b) = info_msg.bytes {
+        b.clone()
+    } else if let Some(ref m) = info_msg.message {
+        m.as_bytes().to_vec()
+    } else {
+        Vec::new()
+    };
+    
+    let sender_info: SenderInfo = serde_json::from_slice(&json_bytes)
         .map_err(|e| e.to_string())?;
         
     let num_files = sender_info.files_to_transfer.len();

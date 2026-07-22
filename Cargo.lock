@@ -7859,6 +7859,7 @@ dependencies = [
  "tye-core-storage",
  "tye-core-vault",
  "tye-git-engine",
+ "tye-xhare-core",
  "uuid",
 ]
 

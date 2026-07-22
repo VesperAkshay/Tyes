@@ -63,6 +63,11 @@ pub async fn send(
                         }
                     }
                 }
+            } else {
+                // If bind fails, keep the tx alive for 15 mins to prevent immediate aborts
+                // when the relay is also down.
+                let _tx = local_conn_tx;
+                tokio::time::sleep(std::time::Duration::from_secs(15 * 60)).await;
             }
         });
     }
@@ -114,10 +119,12 @@ pub async fn send(
                     }
                 }
             }
-        } else {
+        } else if let Err(err) = relay_result {
             // Relay unavailable — LAN-only mode, wait for direct connection
-            ui.log(format!("Relay unavailable, waiting for direct LAN connection..."));
-            local_conn_rx.recv().await.ok_or("No connection received (relay down, no LAN peer)".to_string())
+            ui.log(format!("Relay unavailable: {}. Waiting for direct LAN connection...", err));
+            local_conn_rx.recv().await.ok_or(format!("No connection received (relay down: {}, no LAN peer)", err))
+        } else {
+            unreachable!()
         }
     };
 
@@ -223,13 +230,13 @@ pub async fn send(
         next_reconnect_room: "".to_string(),
     };
     
-    let info_bytes = serde_json::to_vec(&sender_info).map_err(|e| e.to_string())?;
+    let info_json = serde_json::to_string(&sender_info).map_err(|e| e.to_string())?;
     
     let file_info_msg = Message {
         msg_type: Some(MessageType::FileInfo),
-        bytes: Some(info_bytes),
+        bytes: Some(info_json.as_bytes().to_vec()),
         bytes2: None,
-        message: None,
+        message: Some(info_json),
         num: None,
     };
     
