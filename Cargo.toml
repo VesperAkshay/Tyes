@@ -7,7 +7,12 @@ members = [
   "crates/tye-core-events",
   "crates/tye-phase0-verify",
   "crates/tye-git-engine",
-  "apps/tyegit/src-tauri", "crates/tye-core-plugin-host", "crates/plugins/debug-catcher", "crates/plugins/conventional-commits",
+  "crates/tye-xhare-core",
+  "apps/tyegit/src-tauri", 
+  "apps/tyexhare/src-tauri",
+  "crates/tye-core-plugin-host", 
+  "crates/plugins/debug-catcher", 
+  "crates/plugins/conventional-commits",
 ]
 
 [workspace.dependencies]
