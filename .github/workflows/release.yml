@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build-tauri:
@@ -15,13 +16,13 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
-            bundle_path: './target/aarch64-apple-darwin/release/bundle/'
+            bundle_path: './apps/tyegit/src-tauri/target/aarch64-apple-darwin/release/bundle'
           - platform: 'windows-latest'
             args: ''
-            bundle_path: './target/release/bundle/'
+            bundle_path: './apps/tyegit/src-tauri/target/release/bundle'
           - platform: 'ubuntu-22.04'
             args: ''
-            bundle_path: './target/release/bundle/'
+            bundle_path: './apps/tyegit/src-tauri/target/release/bundle'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -31,6 +32,12 @@ jobs:
         uses: pnpm/action-setup@v3
         with:
           version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
 
       - name: Install Node dependencies
         run: pnpm install
@@ -53,15 +60,10 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Build & Sign Tauri App
-        uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          projectPath: "./apps/tyegit"
-          tauriScript: pnpm tauri
-          args: ${{ matrix.args }}
+        run: pnpm --filter @tyes/tyegit exec tauri build ${{ matrix.args }}
 
       - name: Upload Binaries to Cloudflare R2
         shell: bash
@@ -71,10 +73,18 @@ jobs:
           AWS_EC2_METADATA_DISABLED: true
           AWS_REGION: auto
         run: |
-          # Use AWS CLI with Cloudflare R2 S3-compatible endpoint
           aws s3 sync ${{ matrix.bundle_path }} \
             s3://tyegit/releases/${{ github.ref_name }}/ \
-            --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+            --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com \
+            --exclude "*" \
+            --include "*.exe" \
+            --include "*.msi" \
+            --include "*.dmg" \
+            --include "*.AppImage" \
+            --include "*.deb" \
+            --include "*.zip" \
+            --include "*.tar.gz" \
+            --include "*.sig"
 
   update-manifest:
     needs: build-tauri
@@ -84,6 +94,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_EC2_METADATA_DISABLED: true
           AWS_REGION: auto
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -92,22 +103,22 @@ jobs:
           
           echo "Dynamically finding signature files for auto-updater..."
 
-          # Windows NSIS
-          WIN_SIG_FILE=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/nsis/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep '\.sig$' | head -n 1 || echo "")
+          # Windows NSIS Updater
+          WIN_SIG_FILE=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/nsis/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep '\.zip\.sig$' | head -n 1 || echo "")
           if [ -n "$WIN_SIG_FILE" ]; then
             WIN_EXE_SIG=$(aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/nsis/$WIN_SIG_FILE - --endpoint-url $ENDPOINT 2>/dev/null)
             WIN_URL="$BASE_URL/nsis/${WIN_SIG_FILE%.sig}"
           fi
 
-          # macOS
-          MAC_SIG_FILE=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/macos/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep '\.sig$' | head -n 1 || echo "")
+          # macOS Updater (.tar.gz)
+          MAC_SIG_FILE=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/macos/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep '\.tar\.gz\.sig$' | head -n 1 || echo "")
           if [ -n "$MAC_SIG_FILE" ]; then
             MAC_DMG_SIG=$(aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/macos/$MAC_SIG_FILE - --endpoint-url $ENDPOINT 2>/dev/null)
             MAC_URL="$BASE_URL/macos/${MAC_SIG_FILE%.sig}"
           fi
 
-          # Linux AppImage
-          LINUX_SIG_FILE=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/appimage/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep '\.sig$' | head -n 1 || echo "")
+          # Linux AppImage Updater (.tar.gz)
+          LINUX_SIG_FILE=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/appimage/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep '\.tar\.gz\.sig$' | head -n 1 || echo "")
           if [ -n "$LINUX_SIG_FILE" ]; then
             LINUX_APPIMAGE_SIG=$(aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/appimage/$LINUX_SIG_FILE - --endpoint-url $ENDPOINT 2>/dev/null)
             LINUX_URL="$BASE_URL/appimage/${LINUX_SIG_FILE%.sig}"
@@ -135,17 +146,39 @@ jobs:
           }
           EOF
 
-          # Upload latest.json directly to R2 root
+          echo "Uploading latest.json..."
           aws s3 cp latest.json s3://tyegit/latest.json \
             --endpoint-url $ENDPOINT \
             --cache-control "no-cache, no-store, must-revalidate"
 
-          echo "Copying installers to /latest/ for the website..."
-          # Windows
-          aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/nsis/Tyegit_${VERSION}_x64-setup.exe s3://tyegit/latest/TyeGit-Windows-x64.exe --endpoint-url $ENDPOINT || true
+          echo "Finding and copying installers to /latest/ for the website..."
+          # Windows .exe
+          WIN_EXE=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/nsis/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep -v '\.zip' | grep '\.exe$' | head -n 1 || echo "")
+          if [ -n "$WIN_EXE" ]; then
+            aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/nsis/$WIN_EXE s3://tyegit/latest/TyeGit-Windows-x64.exe --endpoint-url $ENDPOINT || true
+          fi
           
-          # macOS (Apple Silicon)
-          aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/dmg/Tyegit_${VERSION}_aarch64.dmg s3://tyegit/latest/TyeGit-Mac-Silicon.dmg --endpoint-url $ENDPOINT || true
+          # Windows .msi
+          WIN_MSI=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/msi/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep -v '\.zip' | grep '\.msi$' | head -n 1 || echo "")
+          if [ -n "$WIN_MSI" ]; then
+            aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/msi/$WIN_MSI s3://tyegit/latest/TyeGit-Windows-x64.msi --endpoint-url $ENDPOINT || true
+          fi
           
-          # Linux
-          aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/appimage/Tyegit_${VERSION}_amd64.AppImage s3://tyegit/latest/TyeGit-Linux-x64.AppImage --endpoint-url $ENDPOINT || true
+          # macOS .dmg
+          MAC_DMG=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/macos/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep '\.dmg$' | head -n 1 || echo "")
+          if [ -n "$MAC_DMG" ]; then
+            aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/macos/$MAC_DMG s3://tyegit/latest/TyeGit-macOS-arm64.dmg --endpoint-url $ENDPOINT || true
+          fi
+          
+          # Linux .AppImage
+          LINUX_APPIMAGE=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/appimage/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep -v '\.tar\.gz' | grep '\.AppImage$' | head -n 1 || echo "")
+          if [ -n "$LINUX_APPIMAGE" ]; then
+            aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/appimage/$LINUX_APPIMAGE s3://tyegit/latest/TyeGit-Linux-x86_64.AppImage --endpoint-url $ENDPOINT || true
+          fi
+          
+          # Linux .deb
+          LINUX_DEB=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/deb/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep '\.deb$' | head -n 1 || echo "")
+          if [ -n "$LINUX_DEB" ]; then
+            aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/deb/$LINUX_DEB s3://tyegit/latest/TyeGit-Linux-x86_64.deb --endpoint-url $ENDPOINT || true
+          fi
+
