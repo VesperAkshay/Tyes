@@ -225,21 +225,26 @@ jobs:
             }
             
             let platform = "";
-            if (archiveFile.includes('.tar.gz')) {
-              if (archiveFile.includes('macos') || archiveFile.includes('darwin') || archiveFile.includes('app.tar.gz')) {
-                platform = archiveFile.includes('aarch64') ? 'darwin-aarch64' : 'darwin-x86_64';
-              } else {
-                platform = archiveFile.includes('aarch64') ? 'linux-aarch64' : 'linux-x86_64';
-              }
-            } else if (archiveFile.endsWith('.zip')) {
-              platform = archiveFile.includes('aarch64') ? 'windows-aarch64' : 'windows-x86_64';
+            let isPreferred = false;
+            
+            if (archiveFile.endsWith('.exe') || archiveFile.endsWith('.msi') || archiveFile.endsWith('.zip')) {
+              platform = archiveFile.includes('aarch64') || archiveFile.includes('arm64') ? 'windows-aarch64' : 'windows-x86_64';
+              if (archiveFile.endsWith('.zip') || archiveFile.endsWith('.exe')) isPreferred = true;
+            } else if (archiveFile.includes('macos') || archiveFile.includes('darwin') || archiveFile.includes('app.tar.gz') || archiveFile.endsWith('.dmg')) {
+              platform = archiveFile.includes('aarch64') || archiveFile.includes('arm64') ? 'darwin-aarch64' : 'darwin-x86_64';
+              if (archiveFile.endsWith('.tar.gz')) isPreferred = true;
+            } else if (archiveFile.endsWith('.AppImage') || archiveFile.endsWith('.AppImage.tar.gz') || archiveFile.endsWith('.deb') || archiveFile.endsWith('.rpm') || archiveFile.endsWith('.tar.gz')) {
+              platform = archiveFile.includes('aarch64') || archiveFile.includes('arm64') ? 'linux-aarch64' : 'linux-x86_64';
+              if (archiveFile.endsWith('.AppImage.tar.gz') || archiveFile.endsWith('.AppImage')) isPreferred = true;
             }
             
             if (platform) {
-              latest.platforms[platform] = {
-                signature: sigContent,
-                url: `${baseUrl}/${archiveFile}`
-              };
+              if (!latest.platforms[platform] || isPreferred) {
+                latest.platforms[platform] = {
+                  signature: sigContent,
+                  url: `${baseUrl}/${archiveFile}`
+                };
+              }
             }
           }
           
