@@ -261,15 +261,18 @@ jobs:
           const output = execSync('aws s3 ls s3://tyegit/releases/${{ github.ref_name }}/ --recursive --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com', { encoding: 'utf8' });
           const files = output.split('\n').map(l => l.trim()).filter(l=>l).map(l => l.split(/\s+/).slice(3).join(' '));
           const ep = 'https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com';
-          const cp = (src, dest) => { try { execSync(\`aws s3 cp s3://tyegit/\${src} s3://tyegit/latest/\${dest} --endpoint-url \${ep}\`); console.log('Copied', dest); } catch(e){} };
+          const cp = (src, dest) => { try { execSync(\`aws s3 cp s3://tyegit/\${src} s3://tyegit/latest/\${dest} --endpoint-url \${ep} --copy-props none --metadata-directive REPLACE\`); console.log('Copied', dest); } catch(e){ console.error('Failed to copy', src); } };
           
           const exe = files.find(f => f.endsWith('.exe') && !f.includes('setup'));
+          const fallbackExe = files.find(f => f.endsWith('.exe'));
           const msi = files.find(f => f.endsWith('.msi'));
           const dmg = files.find(f => f.endsWith('.dmg'));
           const appimage = files.find(f => f.endsWith('.AppImage'));
           const deb = files.find(f => f.endsWith('.deb'));
           
           if(exe) cp(exe, 'TyeGit-Windows-x64.exe');
+          else if(fallbackExe) cp(fallbackExe, 'TyeGit-Windows-x64.exe');
+          
           if(msi) cp(msi, 'TyeGit-Windows-x64.msi');
           if(dmg) cp(dmg, 'TyeGit-macOS-arm64.dmg');
           if(appimage) cp(appimage, 'TyeGit-Linux-x86_64.AppImage');
