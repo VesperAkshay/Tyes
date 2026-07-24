@@ -6,6 +6,11 @@ on:
       - 'v*'
   workflow_dispatch:
 
+env:
+  # The output directory for the Tauri bundles in a Cargo workspace
+  BUNDLE_DIR: "target/release/bundle"
+  FRONTEND_DIST: "apps/tyegit/dist"
+
 jobs:
   build-tauri:
     permissions:
@@ -15,55 +20,113 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
-            args: ''
-            bundle_path: './apps/tyegit/src-tauri/target/release/bundle'
           - platform: 'windows-latest'
-            args: ''
-            bundle_path: './apps/tyegit/src-tauri/target/release/bundle'
           - platform: 'ubuntu-22.04'
-            args: ''
-            bundle_path: './apps/tyegit/src-tauri/target/release/bundle'
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js & pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
+      - name: Validate Signing Secrets
+        shell: bash
+        run: |
+          echo "==== Validating Secrets ===="
+          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" ]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY is missing from GitHub Secrets!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" ]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY_PASSWORD is missing from GitHub Secrets!"
+            exit 1
+          fi
+          echo "Signing secrets are present."
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
 
-      - name: Install Node dependencies
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install Node Dependencies
         run: pnpm install
 
-      - name: Build Design System (required by tyegit)
-        run: pnpm --filter @tyes/design-system run build
-
-      - name: Build Frontend
-        run: pnpm --filter @tyes/tyegit run build
+      - name: Print Versions
+        shell: bash
+        run: |
+          node -v
+          pnpm -v
+          rustc --version
+          cargo --version
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
 
-      - name: Install dependencies (Ubuntu only)
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: Install Ubuntu Dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
+      - name: Install AWS CLI
+        uses: unfor19/install-aws-cli-action@v1.2.7
+        with:
+          version: 2
+
+      - name: Build Design System
+        run: pnpm --filter @tyes/design-system run build
+
+      - name: Build Frontend
+        run: pnpm --filter @tyes/tyegit run build
+
+      - name: Validate Frontend Output
+        shell: bash
+        run: |
+          if [ ! -d "${{ env.FRONTEND_DIST }}" ]; then
+            echo "::error::Frontend build failed! Directory ${{ env.FRONTEND_DIST }} not found."
+            exit 1
+          fi
+          echo "Frontend built successfully."
+
       - name: Build & Sign Tauri App
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: pnpm --filter @tyes/tyegit exec tauri build ${{ matrix.args }}
+        run: pnpm --filter @tyes/tyegit exec tauri build
+
+      - name: Validate Bundle Directory
+        shell: bash
+        run: |
+          if [ ! -d "${{ env.BUNDLE_DIR }}" ]; then
+            echo "::error::Tauri bundle directory not found at ${{ env.BUNDLE_DIR }}!"
+            echo "--- target/release diagnostics ---"
+            find target/release -maxdepth 2 || true
+            exit 1
+          fi
+          echo "--- Discovered Artifacts in ${{ env.BUNDLE_DIR }} ---"
+          find ${{ env.BUNDLE_DIR }} -type f
 
       - name: Upload Binaries to Cloudflare R2
         shell: bash
@@ -73,112 +136,132 @@ jobs:
           AWS_EC2_METADATA_DISABLED: true
           AWS_REGION: auto
         run: |
-          aws s3 sync ${{ matrix.bundle_path }} \
+          aws s3 sync ${{ env.BUNDLE_DIR }} \
             s3://tyegit/releases/${{ github.ref_name }}/ \
-            --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com \
-            --exclude "*" \
-            --include "*.exe" \
-            --include "*.msi" \
-            --include "*.dmg" \
-            --include "*.AppImage" \
-            --include "*.deb" \
-            --include "*.zip" \
-            --include "*.tar.gz" \
-            --include "*.sig"
+            --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
 
   update-manifest:
     needs: build-tauri
     runs-on: ubuntu-latest
     steps:
-      - name: Generate latest.json for Updater & Website
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Install AWS CLI
+        uses: unfor19/install-aws-cli-action@v1.2.7
+        with:
+          version: 2
+
+      - name: Generate latest.json and upload
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_EC2_METADATA_DISABLED: true
           AWS_REGION: auto
+          ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          ENDPOINT="https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
-          BASE_URL="https://release.tyes.dev/releases/${GITHUB_REF_NAME}"
+          cat << 'EOF' > generate.js
+          const { execSync } = require('child_process');
+          const fs = require('fs');
           
-          echo "Dynamically finding signature files for auto-updater..."
-
-          # Windows NSIS Updater
-          WIN_SIG_FILE=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/nsis/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep '\.zip\.sig$' | head -n 1 || echo "")
-          if [ -n "$WIN_SIG_FILE" ]; then
-            WIN_EXE_SIG=$(aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/nsis/$WIN_SIG_FILE - --endpoint-url $ENDPOINT 2>/dev/null)
-            WIN_URL="$BASE_URL/nsis/${WIN_SIG_FILE%.sig}"
-          fi
-
-          # macOS Updater (.tar.gz)
-          MAC_SIG_FILE=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/macos/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep '\.tar\.gz\.sig$' | head -n 1 || echo "")
-          if [ -n "$MAC_SIG_FILE" ]; then
-            MAC_DMG_SIG=$(aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/macos/$MAC_SIG_FILE - --endpoint-url $ENDPOINT 2>/dev/null)
-            MAC_URL="$BASE_URL/macos/${MAC_SIG_FILE%.sig}"
-          fi
-
-          # Linux AppImage Updater (.tar.gz)
-          LINUX_SIG_FILE=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/appimage/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep '\.tar\.gz\.sig$' | head -n 1 || echo "")
-          if [ -n "$LINUX_SIG_FILE" ]; then
-            LINUX_APPIMAGE_SIG=$(aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/appimage/$LINUX_SIG_FILE - --endpoint-url $ENDPOINT 2>/dev/null)
-            LINUX_URL="$BASE_URL/appimage/${LINUX_SIG_FILE%.sig}"
-          fi
-
-          cat <<EOF > latest.json
-          {
-            "version": "${VERSION}",
-            "notes": "Tyegit release ${GITHUB_REF_NAME}",
-            "pub_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-            "platforms": {
-              "windows-x86_64": {
-                "signature": "${WIN_EXE_SIG:-}",
-                "url": "${WIN_URL:-}"
-              },
-              "darwin-aarch64": {
-                "signature": "${MAC_DMG_SIG:-}",
-                "url": "${MAC_URL:-}"
-              },
-              "linux-x86_64": {
-                "signature": "${LINUX_APPIMAGE_SIG:-}",
-                "url": "${LINUX_URL:-}"
+          const refName = process.env.REF_NAME;
+          const version = refName.replace(/^v/, '');
+          const endpoint = `https://${process.env.ACCOUNT_ID}.r2.cloudflarestorage.com`;
+          const baseUrl = `https://release.tyes.dev/releases/${refName}`;
+          
+          console.log("Fetching uploaded files from R2...");
+          const cmd = `aws s3 ls s3://tyegit/releases/${refName}/ --recursive --endpoint-url ${endpoint}`;
+          let output = "";
+          try {
+            output = execSync(cmd, { encoding: 'utf-8' });
+          } catch (e) {
+            console.error("Failed to list S3 directory.");
+            process.exit(1);
+          }
+          
+          const files = output.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .map(line => {
+              const parts = line.split(/\s+/);
+              return parts.slice(3).join(' '); // filename with path
+            });
+            
+          const latest = {
+            version: version,
+            notes: `Tyegit release ${refName}`,
+            pub_date: new Date().toISOString(),
+            platforms: {}
+          };
+          
+          const sigFiles = files.filter(f => f.endsWith('.sig'));
+          
+          for (const sigFile of sigFiles) {
+            const relativePath = sigFile.replace(`releases/${refName}/`, '');
+            const archiveFile = relativePath.slice(0, -4); 
+            
+            console.log(`Processing signature: ${relativePath}`);
+            
+            let sigContent = "";
+            try {
+              sigContent = execSync(`aws s3 cp s3://tyegit/releases/${refName}/${relativePath} - --endpoint-url ${endpoint}`, { encoding: 'utf-8' }).trim();
+            } catch (e) {
+              console.error(`Failed to download signature ${relativePath}`);
+              continue;
+            }
+            
+            let platform = "";
+            if (archiveFile.includes('.tar.gz')) {
+              if (archiveFile.includes('macos') || archiveFile.includes('darwin') || archiveFile.includes('app.tar.gz')) {
+                platform = archiveFile.includes('aarch64') ? 'darwin-aarch64' : 'darwin-x86_64';
+              } else {
+                platform = archiveFile.includes('aarch64') ? 'linux-aarch64' : 'linux-x86_64';
               }
+            } else if (archiveFile.endsWith('.zip')) {
+              platform = archiveFile.includes('aarch64') ? 'windows-aarch64' : 'windows-x86_64';
+            }
+            
+            if (platform) {
+              latest.platforms[platform] = {
+                signature: sigContent,
+                url: `${baseUrl}/${archiveFile}`
+              };
             }
           }
+          
+          fs.writeFileSync('latest.json', JSON.stringify(latest, null, 2));
+          console.log("Generated latest.json:");
+          console.log(fs.readFileSync('latest.json', 'utf8'));
           EOF
-
+          
+          node generate.js
+          
           echo "Uploading latest.json..."
           aws s3 cp latest.json s3://tyegit/latest.json \
-            --endpoint-url $ENDPOINT \
+            --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com \
             --cache-control "no-cache, no-store, must-revalidate"
-
-          echo "Finding and copying installers to /latest/ for the website..."
-          # Windows .exe
-          WIN_EXE=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/nsis/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep -v '\.zip' | grep '\.exe$' | head -n 1 || echo "")
-          if [ -n "$WIN_EXE" ]; then
-            aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/nsis/$WIN_EXE s3://tyegit/latest/TyeGit-Windows-x64.exe --endpoint-url $ENDPOINT || true
-          fi
+            
+          echo "Copying to /latest/ for the website downloads..."
+          node -e "
+          const { execSync } = require('child_process');
+          const output = execSync('aws s3 ls s3://tyegit/releases/${{ github.ref_name }}/ --recursive --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com', { encoding: 'utf8' });
+          const files = output.split('\n').map(l => l.trim()).filter(l=>l).map(l => l.split(/\s+/).slice(3).join(' '));
+          const ep = 'https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com';
+          const cp = (src, dest) => { try { execSync(\`aws s3 cp s3://tyegit/\${src} s3://tyegit/latest/\${dest} --endpoint-url \${ep}\`); console.log('Copied', dest); } catch(e){} };
           
-          # Windows .msi
-          WIN_MSI=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/msi/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep -v '\.zip' | grep '\.msi$' | head -n 1 || echo "")
-          if [ -n "$WIN_MSI" ]; then
-            aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/msi/$WIN_MSI s3://tyegit/latest/TyeGit-Windows-x64.msi --endpoint-url $ENDPOINT || true
-          fi
+          const exe = files.find(f => f.endsWith('.exe') && !f.includes('setup'));
+          const msi = files.find(f => f.endsWith('.msi'));
+          const dmg = files.find(f => f.endsWith('.dmg'));
+          const appimage = files.find(f => f.endsWith('.AppImage'));
+          const deb = files.find(f => f.endsWith('.deb'));
           
-          # macOS .dmg
-          MAC_DMG=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/macos/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep '\.dmg$' | head -n 1 || echo "")
-          if [ -n "$MAC_DMG" ]; then
-            aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/macos/$MAC_DMG s3://tyegit/latest/TyeGit-macOS-arm64.dmg --endpoint-url $ENDPOINT || true
-          fi
-          
-          # Linux .AppImage
-          LINUX_APPIMAGE=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/appimage/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep -v '\.tar\.gz' | grep '\.AppImage$' | head -n 1 || echo "")
-          if [ -n "$LINUX_APPIMAGE" ]; then
-            aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/appimage/$LINUX_APPIMAGE s3://tyegit/latest/TyeGit-Linux-x86_64.AppImage --endpoint-url $ENDPOINT || true
-          fi
-          
-          # Linux .deb
-          LINUX_DEB=$(aws s3 ls s3://tyegit/releases/${GITHUB_REF_NAME}/deb/ --endpoint-url $ENDPOINT | awk '{print $4}' | grep '\.deb$' | head -n 1 || echo "")
-          if [ -n "$LINUX_DEB" ]; then
-            aws s3 cp s3://tyegit/releases/${GITHUB_REF_NAME}/deb/$LINUX_DEB s3://tyegit/latest/TyeGit-Linux-x86_64.deb --endpoint-url $ENDPOINT || true
-          fi
+          if(exe) cp(exe, 'TyeGit-Windows-x64.exe');
+          if(msi) cp(msi, 'TyeGit-Windows-x64.msi');
+          if(dmg) cp(dmg, 'TyeGit-macOS-arm64.dmg');
+          if(appimage) cp(appimage, 'TyeGit-Linux-x86_64.AppImage');
+          if(deb) cp(deb, 'TyeGit-Linux-x86_64.deb');
+          "
 
