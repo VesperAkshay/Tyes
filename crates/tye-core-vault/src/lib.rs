@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use thiserror::Error;
 use uuid::Uuid;
+use zeroize::Zeroizing;
 
 pub const SERVICE_NAMESPACE: &str = "dev.tyes.vault";
 
@@ -49,8 +50,8 @@ pub enum VaultError {
 
 pub type Result<T> = std::result::Result<T, VaultError>;
 
-fn memory_store() -> &'static Mutex<HashMap<String, String>> {
-    static STORE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
+fn memory_store() -> &'static Mutex<HashMap<String, Zeroizing<String>>> {
+    static STORE: OnceLock<Mutex<HashMap<String, Zeroizing<String>>>> = OnceLock::new();
     STORE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
@@ -66,7 +67,7 @@ pub fn get(key: &VaultKey) -> Result<Option<String>> {
     if is_memory_backend() {
         if let Ok(store) = memory_store().lock() {
             if let Some(val) = store.get(&user) {
-                return Ok(Some(val.clone()));
+                return Ok(Some(val.as_str().to_string()));
             }
         }
     }
@@ -76,14 +77,14 @@ pub fn get(key: &VaultKey) -> Result<Option<String>> {
             Ok(pwd) => {
                 // Populate L1 cache on successful read
                 if let Ok(mut store) = memory_store().lock() {
-                    store.insert(user.clone(), pwd.clone());
+                    store.insert(user.clone(), Zeroizing::new(pwd.clone()));
                 }
                 Ok(Some(pwd))
             }
             Err(keyring::Error::NoEntry) => {
                 if let Ok(store) = memory_store().lock() {
                     if let Some(val) = store.get(&user) {
-                        return Ok(Some(val.clone()));
+                        return Ok(Some(val.as_str().to_string()));
                     }
                 }
                 Ok(None)
@@ -91,7 +92,7 @@ pub fn get(key: &VaultKey) -> Result<Option<String>> {
             Err(e) => {
                 if let Ok(store) = memory_store().lock() {
                     if let Some(val) = store.get(&user) {
-                        return Ok(Some(val.clone()));
+                        return Ok(Some(val.as_str().to_string()));
                     }
                 }
                 if is_memory_backend() || cfg!(test) {
@@ -104,7 +105,7 @@ pub fn get(key: &VaultKey) -> Result<Option<String>> {
         Err(e) => {
             if let Ok(store) = memory_store().lock() {
                 if let Some(val) = store.get(&user) {
-                    return Ok(Some(val.clone()));
+                    return Ok(Some(val.as_str().to_string()));
                 }
             }
             if is_memory_backend() || cfg!(test) {
@@ -121,7 +122,7 @@ pub fn set(key: &VaultKey, value: &str) -> Result<()> {
 
     // Always update L1 memory cache first so in-process reads are guaranteed fast & consistent
     if let Ok(mut store) = memory_store().lock() {
-        store.insert(user.clone(), value.to_string());
+        store.insert(user.clone(), Zeroizing::new(value.to_string()));
     }
 
     if is_memory_backend() {

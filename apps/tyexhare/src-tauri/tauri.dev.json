@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:* tauri: asset: https://api.whatsapp.com https://t.me; img-src 'self' asset: data: blob:;"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:* tauri: asset: https://api.whatsapp.com https://t.me; img-src 'self' asset: data: blob:;"
     }
   },
   "bundle": {

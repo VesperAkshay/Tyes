@@ -37,6 +37,7 @@ pub async fn send(
     
     // Setup UDP Multicast Discovery Listener
     let discovery_room = room_name.to_string();
+    let discovery_secret = shared_secret.to_string();
     let local_listener = tokio::net::TcpListener::bind("0.0.0.0:0").await.ok();
     let local_port = local_listener.as_ref().map(|l| l.local_addr().unwrap().port());
     
@@ -49,16 +50,38 @@ pub async fn send(
             if let Ok(udp) = UdpSocket::bind("0.0.0.0:9009").await {
                 let mut buf = [0u8; 1024];
                 let discovery_msg = format!("tye-xhare-rs-discovery:{}", discovery_room);
+                let mut rate_limits: std::collections::HashMap<std::net::IpAddr, (std::time::Instant, u32)> = std::collections::HashMap::new();
+                
                 while let Ok((len, addr)) = udp.recv_from(&mut buf).await {
+                    let now = std::time::Instant::now();
+                    let ip = addr.ip();
+                    let entry = rate_limits.entry(ip).or_insert((now, 0));
+                    if now.duration_since(entry.0).as_secs() > 1 {
+                        entry.0 = now;
+                        entry.1 = 0;
+                    }
+                    entry.1 += 1;
+                    if entry.1 > 10 {
+                        continue; // Rate limited: more than 10 requests per second
+                    }
+                    
                     if let Ok(s) = std::str::from_utf8(&buf[..len]) {
                         if s == discovery_msg {
-                            let reply = format!("tye-xhare-rs-reply:{}", port);
-                            let _ = udp.send_to(reply.as_bytes(), addr).await;
+                            use hmac::{Hmac, Mac};
+                            use sha2::Sha256;
                             
-                            // Try accepting local LAN connection without permanently exiting on short timeout
-                            if let Ok(Ok((stream, _))) = tokio::time::timeout(std::time::Duration::from_secs(10), listener.accept()).await {
-                                let _ = local_conn_tx.send(crate::comm::Comm::new(stream)).await;
-                                break;
+                            let reply_body = format!("tye-xhare-rs-reply:{}", port);
+                            if let Ok(mut mac) = Hmac::<Sha256>::new_from_slice(discovery_secret.as_bytes()) {
+                                mac.update(reply_body.as_bytes());
+                                let signature = hex::encode(mac.finalize().into_bytes());
+                                let reply = format!("{}|{}", reply_body, signature);
+                                let _ = udp.send_to(reply.as_bytes(), addr).await;
+                                
+                                // Try accepting local LAN connection without permanently exiting on short timeout
+                                if let Ok(Ok((stream, _))) = tokio::time::timeout(std::time::Duration::from_secs(10), listener.accept()).await {
+                                    let _ = local_conn_tx.send(crate::comm::Comm::new(stream)).await;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -137,7 +160,10 @@ pub async fn send(
     ui.log(format!("securing channel..."));
     
     // Process PAKE handshake from receiver
-    let payload = conn.receive().await.map_err(|e| e.to_string())?;
+    let payload = tokio::time::timeout(std::time::Duration::from_secs(30), conn.receive())
+        .await
+        .map_err(|_| "Timeout waiting for PAKE from receiver".to_string())?
+        .map_err(|e| e.to_string())?;
     let msg = message::decode(None, payload.clone()).or_else(|_| {
         message::decode(None, payload)
     }).map_err(|e| e.to_string())?;
@@ -157,7 +183,7 @@ pub async fn send(
     let strong_key = pake.update(&pake_bytes).map_err(|e| e.to_string())?;
     
     // Generate salt
-    let mut salt = [0u8; 8];
+    let mut salt = [0u8; 16]; // 128-bit salt
     rand::thread_rng().fill_bytes(&mut salt);
     
     // Send our PAKE bytes + salt

@@ -197,6 +197,11 @@ pub fn read_ssh_config() -> Result<Vec<SshConfigHost>, GitEngineError> {
 
 /// Generate a new Ed25519 SSH key (`F-005`).
 pub async fn generate_ed25519_key(key_name: &str, comment: &str, passphrase: &str) -> Result<SshKey, GitEngineError> {
+    // Validate key_name to prevent directory traversal or flag injection
+    if key_name.contains('/') || key_name.contains('\\') || key_name.starts_with('-') || key_name.contains("..") {
+        return Err(GitEngineError::SshError("Invalid key name format".to_string()));
+    }
+
     let ssh_dir = get_ssh_dir().ok_or_else(|| GitEngineError::SshError("Could not determine user home directory".to_string()))?;
     fs::create_dir_all(&ssh_dir)?;
 
@@ -234,4 +239,20 @@ pub async fn generate_ed25519_key(key_name: &str, comment: &str, passphrase: &st
         is_weak: false,
         warning_message: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_generate_ed25519_key_validation() {
+        // Path traversal should fail
+        let result = generate_ed25519_key("../test_key", "comment", "pass").await;
+        assert!(result.is_err());
+        
+        // Flag injection should fail
+        let result = generate_ed25519_key("-t", "comment", "pass").await;
+        assert!(result.is_err());
+    }
 }

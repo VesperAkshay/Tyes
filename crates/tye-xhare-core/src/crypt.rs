@@ -4,29 +4,12 @@ use aes_gcm::{
 };
 use chacha20poly1305::{XChaCha20Poly1305, XNonce};
 use argon2::{Argon2, Algorithm, Version, Params};
-use pbkdf2::pbkdf2_hmac;
-use sha2::Sha256;
 use rand::{RngCore, thread_rng};
 use std::error::Error;
 
-/// Generates a new key based on a passphrase and salt using PBKDF2-HMAC-SHA256
+/// Generates a new key based on a passphrase and salt using Argon2id
 pub fn new_key(passphrase: &[u8], user_salt: Option<&[u8]>) -> Result<(Vec<u8>, Vec<u8>), Box<dyn Error>> {
-    if passphrase.is_empty() {
-        return Err("need more than that for passphrase".into());
-    }
-
-    let salt = match user_salt {
-        Some(s) => s.to_vec(),
-        None => {
-            let mut s = vec![0u8; 8];
-            thread_rng().fill_bytes(&mut s);
-            s
-        }
-    };
-
-    let mut key = vec![0u8; 32];
-    pbkdf2_hmac::<Sha256>(passphrase, &salt, 100, &mut key);
-    Ok((key, salt))
+    new_argon2(passphrase, user_salt)
 }
 
 /// Encrypts using AES-256-GCM with the pre-generated key
@@ -69,7 +52,7 @@ pub fn new_argon2(passphrase: &[u8], user_salt: Option<&[u8]>) -> Result<(Vec<u8
     let salt = match user_salt {
         Some(s) => s.to_vec(),
         None => {
-            let mut s = vec![0u8; 8];
+            let mut s = vec![0u8; 16]; // 128-bit salt
             thread_rng().fill_bytes(&mut s);
             s
         }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { z } from "zod";
 import { FiClock, FiFile, FiDownload, FiUpload, FiTrash2 } from "react-icons/fi";
 import anime from "animejs";
 
@@ -13,17 +14,37 @@ export interface TransferReceipt {
   status: "success" | "failed";
 }
 
+const receiptSchema = z.object({
+  id: z.string(),
+  type: z.enum(["send", "receive"]),
+  filename: z.string(),
+  size: z.string(),
+  date: z.string(),
+  status: z.enum(["success", "failed"]),
+});
+
+const historySchema = z.array(receiptSchema);
+
 export function HistoryView() {
   const [receipts, setReceipts] = useState<TransferReceipt[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Load from localStorage
+    // Load from localStorage securely with Zod schema validation
     const saved = localStorage.getItem("tyexhare_history");
     if (saved) {
       try {
-        setReceipts(JSON.parse(saved));
-      } catch (e) {}
+        const parsed = JSON.parse(saved);
+        const result = historySchema.safeParse(parsed);
+        if (result.success) {
+          setReceipts(result.data);
+        } else {
+          console.warn("localStorage tyexhare_history validation failed, resetting...", result.error);
+          localStorage.removeItem("tyexhare_history");
+        }
+      } catch (e) {
+        localStorage.removeItem("tyexhare_history");
+      }
     }
   }, []);
 

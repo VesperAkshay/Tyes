@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { FiWifi } from "react-icons/fi";
 import { Header } from "@/components/layout/Header";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { TitleBar } from "@/components/layout/TitleBar";
@@ -24,6 +27,7 @@ export default function Home() {
   const [relayPass, setRelayPass] = useState<string>("pass123");
   const [defaultOutDir, setDefaultOutDir] = useState<string>("");
   const [inspectingFiles, setInspectingFiles] = useState<string[] | null>(null);
+  const [pairingRequest, setPairingRequest] = useState<{sender_name: string, code: string, ip: string} | null>(null);
 
   const {
     transferState,
@@ -48,12 +52,27 @@ export default function Home() {
     openDownloadFolder,
   } = useTransfer();
 
-  // Initialize theme and global audio click listener
+  // Initialize theme, settings, and global audio click listener
   useEffect(() => {
     const storedTheme = localStorage.getItem("tyexhare_theme");
     if (storedTheme) {
       document.documentElement.dataset.theme = storedTheme;
     }
+
+    async function loadSettings() {
+      try {
+        const savedAddr = await invoke<string | null>("get_secure_setting", { key: "relayAddr" });
+        const savedPass = await invoke<string | null>("get_secure_setting", { key: "relayPass" });
+        const savedDir = await invoke<string | null>("get_secure_setting", { key: "defaultOutDir" });
+        
+        if (savedAddr) setRelayAddr(savedAddr);
+        if (savedPass) setRelayPass(savedPass);
+        if (savedDir) setDefaultOutDir(savedDir);
+      } catch (err) {
+        console.warn("Failed to load secure settings:", err);
+      }
+    }
+    loadSettings();
 
     const initAudio = () => {
       soundEngine.init();
@@ -79,6 +98,19 @@ export default function Home() {
       document.removeEventListener("pointerdown", initAudio);
       document.removeEventListener("click", handleGlobalClick);
     };
+  }, []);
+
+  // Listen for Radar incoming pair requests
+  useEffect(() => {
+    let unlisten: any;
+    async function setup() {
+      unlisten = await listen<{sender_name: string, code: string, ip: string}>("incoming_pair_request", (event) => {
+        soundEngine.playBlip();
+        setPairingRequest(event.payload);
+      });
+    }
+    setup();
+    return () => { if (unlisten) unlisten(); };
   }, []);
 
   // Auto-switch to transfer monitor tab when a transfer begins
@@ -156,7 +188,13 @@ export default function Home() {
     const files = await selectFiles();
     if (files && files.length > 0) {
       setIsSender(true);
-      startSend(files, undefined, device.code as string, relayAddr, relayPass);
+      const code = Math.floor(1000 + Math.random() * 9000) + "-radar-transfer";
+      try {
+        await invoke("send_pair_request", { targetDeviceId: device.device_id, code });
+      } catch (err) {
+        console.warn("Could not send pair request", err);
+      }
+      startSend(files, undefined, code, relayAddr, relayPass);
     }
   };
 
@@ -182,26 +220,29 @@ export default function Home() {
 
         <section className="flex-1 flex flex-col items-center justify-start relative overflow-y-auto px-4 py-1 my-auto">
           {/* Main View Router */}
-          {transferState === "complete" || transferState === "error" ? (
-            <CompleteView
-              message={doneMessage}
-              errorMessage={errorMessage}
-              onDone={() => {
-                resetTransfer();
-                setActiveTab("send");
-              }}
-              onOpenFolder={() => openDownloadFolder(defaultOutDir || undefined)}
-            />
-          ) : transferState === "transferring" || activeTab === "transfer" ? (
-            <TransferView
-              stats={stats}
-              secretCode={secretCode}
-              logs={logs}
-              isSender={isSender}
-              promptMessage={promptMessage}
-              onRespondPrompt={respondPrompt}
-              onCancel={cancelTransfer}
-            />
+          {activeTab === "transfer" ? (
+            transferState === "complete" || transferState === "error" ? (
+              <CompleteView
+                message={doneMessage}
+                errorMessage={errorMessage}
+                isSender={isSender}
+                onDone={() => {
+                  resetTransfer();
+                  setActiveTab("send");
+                }}
+                onOpenFolder={() => openDownloadFolder(defaultOutDir || undefined)}
+              />
+            ) : (
+              <TransferView
+                stats={stats}
+                secretCode={secretCode}
+                logs={logs}
+                isSender={isSender}
+                promptMessage={promptMessage}
+                onRespondPrompt={respondPrompt}
+                onCancel={cancelTransfer}
+              />
+            )
           ) : activeTab === "receive" ? (
             <ReceiveView
               secretCode={secretCode}
@@ -241,6 +282,49 @@ export default function Home() {
 
         <StatusBar relayAddr={relayAddr} />
       </div>
+
+      {/* Radar Incoming Pair Request Modal */}
+      {pairingRequest && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 select-none animate-in fade-in duration-200">
+          <div className="w-full max-w-md border-4 border-foreground bg-background p-6 rounded-lg shadow-2xl space-y-5 relative">
+            <div className="flex items-center space-x-3 border-b-2 border-foreground/20 pb-3">
+              <div className="w-10 h-10 rounded bg-primary/20 border-2 border-primary flex items-center justify-center text-primary">
+                <FiWifi className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-pixel text-lg text-foreground">INCOMING RADAR</h3>
+                <p className="text-xs font-mono text-muted-foreground">Secure Transfer Request</p>
+              </div>
+            </div>
+            
+            <div className="border-2 border-foreground bg-muted/20 p-4 rounded-md space-y-3">
+              <p className="text-sm font-mono text-foreground text-center">
+                <span className="font-bold text-primary">{pairingRequest.sender_name}</span> wants to send you a file.
+              </p>
+            </div>
+            
+            <div className="flex space-x-3 pt-2">
+              <button
+                className="flex-1 py-2 font-pixel text-sm border-2 border-foreground hover:bg-muted text-foreground transition-colors rounded"
+                onClick={() => setPairingRequest(null)}
+              >
+                DECLINE
+              </button>
+              <button
+                className="flex-1 py-2 font-pixel text-sm border-2 border-primary bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-[4px_4px_0_0_#1a1a1a] dark:shadow-[4px_4px_0_0_#ede8dc] hover:shadow-none hover:translate-x-1 hover:translate-y-1 rounded"
+                onClick={() => {
+                  const code = pairingRequest.code;
+                  setPairingRequest(null);
+                  setActiveTab("receive");
+                  handleReceive(code, undefined, true);
+                }}
+              >
+                ACCEPT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ pub fn create_archive(repo_path: &Path, commit_id: &str, output_path: &Path) -> 
         .arg("archive")
         .arg("--format=zip")
         .arg(format!("--output={}", output_path.display()))
+        .arg("--")
         .arg(commit_id)
         .output()
         .map_err(|e| GitEngineError::Internal(format!("Failed to execute git archive: {}", e)))?;

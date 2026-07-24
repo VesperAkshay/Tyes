@@ -50,7 +50,10 @@ export function SendView({ onSendFiles, onSendText, selectFiles, selectFolder }:
     setSelectedPaths((prev) => prev.filter((p) => p !== pathToRemove));
   };
 
+  const isValidCustomCode = !customCode || /^[a-zA-Z0-9-]{1,64}$/.test(customCode);
+
   const handleSend = () => {
+    if (!isValidCustomCode) return;
     if (sendType === "files" && selectedPaths.length > 0) {
       onSendFiles(selectedPaths, customCode || undefined);
     } else if (sendType === "text" && textContent.trim()) {
@@ -161,8 +164,8 @@ export function SendView({ onSendFiles, onSendText, selectFiles, selectFolder }:
 
       {/* Custom Code Input Box */}
       {showCodeInput && (
-        <div className="w-full mt-4 flex flex-col items-start border-2 border-secondary/30 p-3 bg-secondary/5 rounded">
-          <label className="text-xs font-mono font-bold text-secondary mb-1">CUSTOM SECRET CODE (OPTIONAL):</label>
+        <div className={`w-full mt-4 flex flex-col items-start border-2 p-3 rounded transition-colors ${!isValidCustomCode && customCode ? 'border-destructive bg-destructive/5' : 'border-secondary/30 bg-secondary/5'}`}>
+          <label className={`text-xs font-mono font-bold mb-1 ${!isValidCustomCode && customCode ? 'text-destructive' : 'text-secondary'}`}>CUSTOM SECRET CODE (OPTIONAL):</label>
           <input
             type="text"
             value={customCode}
@@ -170,13 +173,16 @@ export function SendView({ onSendFiles, onSendText, selectFiles, selectFolder }:
             placeholder="e.g. my-secret-pass-123"
             className="w-full bg-background border border-foreground/20 px-3 py-2 font-mono text-sm outline-none rounded focus:border-secondary transition-colors shadow-inner"
           />
+          {!isValidCustomCode && customCode && (
+            <span className="text-[10px] font-mono text-destructive font-bold mt-1">Must be 1-64 chars (alphanumeric and hyphens only).</span>
+          )}
         </div>
       )}
 
       {/* Send Submit Button */}
       <button
         onClick={handleSend}
-        disabled={(sendType === "files" && selectedPaths.length === 0) || (sendType === "text" && !textContent.trim())}
+        disabled={(sendType === "files" && selectedPaths.length === 0) || (sendType === "text" && !textContent.trim()) || !isValidCustomCode}
         className="mt-8 w-full btn-3d text-xl py-4 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary hover:border-primary transition-all duration-300"
       >
         SEND TRANSFER

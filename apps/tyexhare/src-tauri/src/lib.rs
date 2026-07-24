@@ -48,8 +48,13 @@ async fn pick_files() -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-async fn generate_qr_code(code: String) -> Result<String, String> {
-    tye_xhare_core::qr_utils::generate_qr_svg(&code)
+fn open_url_safely(url: String) -> Result<(), String> {
+    if url.starts_with("http://") || url.starts_with("https://") {
+        open::that(&url).map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        Err("Invalid or unsafe URL".into())
+    }
 }
 
 #[tauri::command]
@@ -273,25 +278,6 @@ async fn start_receive(
 }
 
 #[tauri::command]
-async fn open_url(url: String) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        let _ = std::process::Command::new("cmd")
-            .args(["/C", "start", "", &url])
-            .spawn();
-    }
-    #[cfg(target_os = "macos")]
-    {
-        let _ = std::process::Command::new("open").arg(&url).spawn();
-    }
-    #[cfg(target_os = "linux")]
-    {
-        let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
-    }
-    Ok(())
-}
-
-#[tauri::command]
 async fn open_download_folder(path: Option<String>) -> Result<(), String> {
     let target_dir = if let Some(p) = path {
         if !p.is_empty() {
@@ -304,23 +290,32 @@ async fn open_download_folder(path: Option<String>) -> Result<(), String> {
     };
 
     let _ = std::fs::create_dir_all(&target_dir);
-
-    #[cfg(target_os = "windows")]
-    {
-        let _ = std::process::Command::new("explorer").arg(&target_dir).spawn();
-    }
-    #[cfg(target_os = "macos")]
-    {
-        let _ = std::process::Command::new("open").arg(&target_dir).spawn();
-    }
-    #[cfg(target_os = "linux")]
-    {
-        let _ = std::process::Command::new("xdg-open").arg(&target_dir).spawn();
-    }
+    let _ = open::that(&target_dir);
+    
     Ok(())
 }
 
 pub mod discovery;
+
+#[tauri::command]
+fn get_secure_setting(key: String) -> Result<Option<String>, String> {
+    let vault_key = tye_core_vault::VaultKey {
+        module: tye_core_vault::Module::Core,
+        project_id: None,
+        key: format!("tyexhare_{}", key),
+    };
+    tye_core_vault::get(&vault_key).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_secure_setting(key: String, value: String) -> Result<(), String> {
+    let vault_key = tye_core_vault::VaultKey {
+        module: tye_core_vault::Module::Core,
+        project_id: None,
+        key: format!("tyexhare_{}", key),
+    };
+    tye_core_vault::set(&vault_key, &value).map_err(|e| e.to_string())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -339,10 +334,12 @@ pub fn run() {
             stop_local_relay,
             pick_files,
             pick_folder,
-            generate_qr_code,
-            open_url,
+            open_url_safely,
             open_download_folder,
-            discovery::set_discovery_state
+            get_secure_setting,
+            set_secure_setting,
+            discovery::set_discovery_state,
+            discovery::send_pair_request
         ])
         .setup(move |app| {
             if cfg!(debug_assertions) {

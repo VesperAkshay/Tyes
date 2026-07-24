@@ -1,6 +1,7 @@
-use flate2::write::{DeflateEncoder, DeflateDecoder};
+use flate2::write::DeflateEncoder;
+use flate2::read::DeflateDecoder;
 use flate2::Compression;
-use std::io::Write;
+use std::io::{Read, Write};
 
 /// Compresses data using the specified level.
 pub fn compress_with_option(src: &[u8], level: u32) -> Vec<u8> {
@@ -20,14 +21,26 @@ pub fn compress(src: &[u8]) -> Vec<u8> {
     compress_with_option(src, 1)
 }
 
-/// Decompress returns a decompressed byte slice.
+/// Decompress returns a decompressed byte slice safely (mitigates zip bomb).
 pub fn decompress(src: &[u8]) -> Vec<u8> {
-    let mut decoder = DeflateDecoder::new(Vec::new());
-    if let Err(e) = decoder.write_all(src) {
+    let mut decoder = DeflateDecoder::new(src);
+    let mut result = Vec::new();
+    let max_size = 10 * 1024 * 1024; // 10 MB limit for decompression bomb protection
+    
+    if let Err(e) = decoder.by_ref().take(max_size).read_to_end(&mut result) {
         eprintln!("error copying data: {}", e);
         return Vec::new();
     }
-    decoder.finish().unwrap_or_default()
+    
+    let mut extra = [0u8; 1];
+    if let Ok(n) = decoder.read(&mut extra) {
+        if n > 0 {
+            eprintln!("error: decompression bomb detected, payload exceeded maximum allowed size");
+            return Vec::new();
+        }
+    }
+    
+    result
 }
 
 #[cfg(test)]

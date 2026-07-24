@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { FiServer, FiLock, FiFolder, FiPower, FiCheck, FiVolume2, FiVolumeX, FiMonitor } from "react-icons/fi";
 import { soundEngine } from "@/lib/audio";
 
@@ -57,12 +58,22 @@ export function SettingsView({
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     soundEngine.playSuccess();
     setSavedSuccess(true);
     // Save theme
     localStorage.setItem("tyexhare_theme", theme);
     document.documentElement.dataset.theme = theme;
+
+    // Save secure settings to backend vault
+    try {
+      await invoke("set_secure_setting", { key: "relayAddr", value: relayAddr });
+      await invoke("set_secure_setting", { key: "relayPass", value: relayPass });
+      await invoke("set_secure_setting", { key: "defaultOutDir", value: defaultOutDir });
+    } catch (err) {
+      console.error("Failed to save settings to secure vault", err);
+    }
+
     setTimeout(() => setSavedSuccess(false), 2000);
   };
 

@@ -3,6 +3,26 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { Tab, TransferState, TransferEventPayload, TransferStats } from "@/types";
 
+const sanitizeError = (err: any): string => {
+  const msg = String(err).toLowerCase();
+  if (msg.includes("os error 10060") || msg.includes("timeout") || msg.includes("connection closed")) {
+    return "Connection Timeout: The other device is unreachable or disconnected.";
+  }
+  if (msg.includes("os error 10061") || msg.includes("connection refused")) {
+    return "Connection Refused: Ensure the other device is ready to receive.";
+  }
+  if (msg.includes("invalid password") || msg.includes("unauthorized")) {
+    return "Authentication Failed: Incorrect relay password.";
+  }
+  if (msg.includes("no route to host")) {
+    return "Network Error: No route to the host device.";
+  }
+  if (msg.includes("pake") || msg.includes("handshake")) {
+    return "Secure Handshake Failed: The transfer was intercepted or codes do not match.";
+  }
+  return "Transfer interrupted due to an unexpected network error.";
+};
+
 export function useTransfer() {
   const [transferState, setTransferState] = useState<TransferState>("idle");
   const [secretCode, setSecretCode] = useState<string>("");
@@ -113,7 +133,11 @@ export function useTransfer() {
 
   // Sync secretCode with the Rust discovery service
   useEffect(() => {
-    const deviceName = localStorage.getItem("tyexhare_device_name") || "Tye-Xhare User";
+    let deviceName = localStorage.getItem("tyexhare_device_name");
+    if (!deviceName) {
+      deviceName = `Tye-Xhare User ${Math.floor(1000 + Math.random() * 9000)}`;
+      localStorage.setItem("tyexhare_device_name", deviceName);
+    }
     invoke("set_discovery_state", { name: deviceName, code: secretCode }).catch(console.warn);
   }, [secretCode]);
 
@@ -140,7 +164,7 @@ export function useTransfer() {
       });
       setSecretCode(code);
     } catch (err: any) {
-      setErrorMessage(String(err));
+      setErrorMessage(sanitizeError(err));
       setTransferState("error");
     }
   };
@@ -169,7 +193,7 @@ export function useTransfer() {
         autoAccept: autoAccept ?? false,
       });
     } catch (err: any) {
-      setErrorMessage(String(err));
+      setErrorMessage(sanitizeError(err));
       setTransferState("error");
     }
   };
@@ -205,7 +229,7 @@ export function useTransfer() {
       });
       setEmbeddedRelayRunning(true);
     } catch (err: any) {
-      setErrorMessage(`Relay launch error: ${err}`);
+      setErrorMessage(`Relay launch error: ${sanitizeError(err)}`);
     }
   };
 

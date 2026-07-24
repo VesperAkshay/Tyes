@@ -7,11 +7,12 @@ import anime from "animejs";
 interface CompleteViewProps {
   message?: string | null;
   errorMessage?: string | null;
+  isSender: boolean;
   onDone: () => void;
   onOpenFolder?: () => void;
 }
 
-export function CompleteView({ message, errorMessage, onDone, onOpenFolder }: CompleteViewProps) {
+export function CompleteView({ message, errorMessage, isSender, onDone, onOpenFolder }: CompleteViewProps) {
   const isError = Boolean(errorMessage);
   const containerRef = useRef<HTMLDivElement>(null);
   const iconRef = useRef<HTMLDivElement>(null);
@@ -64,7 +65,7 @@ export function CompleteView({ message, errorMessage, onDone, onOpenFolder }: Co
       </div>
 
       <h2 className="text-3xl font-pixel font-bold mb-2 text-foreground">
-        {isError ? "TRANSFER FAILED" : "TRANSFER COMPLETE!"}
+        {isError ? "TRANSFER FAILED" : isSender ? "SENT SUCCESSFULLY!" : "RECEIVED SUCCESSFULLY!"}
       </h2>
 
       {/* The "Receipt" Box */}
@@ -84,7 +85,7 @@ export function CompleteView({ message, errorMessage, onDone, onOpenFolder }: Co
           {errorMessage || message || "File(s) transferred successfully to destination."}
         </p>
 
-        {!isError && (
+        {!isError && !isSender && (
           <div className="text-xs text-muted-foreground pt-1 flex items-center space-x-1">
             <FiFolder className="w-3.5 h-3.5 text-secondary shrink-0" />
             <span className="truncate">Saved to: Downloads / TyeXhare</span>
@@ -94,7 +95,7 @@ export function CompleteView({ message, errorMessage, onDone, onOpenFolder }: Co
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full">
-        {!isError && onOpenFolder && (
+        {!isError && !isSender && onOpenFolder && (
           <button
             onClick={onOpenFolder}
             className="w-full sm:flex-1 py-3 px-4 btn-3d-secondary hover:bg-secondary border-foreground/20 font-pixel text-xs flex items-center justify-center space-x-2 rounded transition-colors"
@@ -109,7 +110,7 @@ export function CompleteView({ message, errorMessage, onDone, onOpenFolder }: Co
           className="w-full sm:flex-1 py-3 px-4 btn-3d font-pixel text-xs border-foreground/20 flex items-center justify-center space-x-2 rounded transition-colors"
         >
           <FiSend className="w-4 h-4" />
-          <span>{isError ? "TRY AGAIN" : "SHARE NEW FILE"}</span>
+          <span>{isError ? "TRY AGAIN" : "DONE"}</span>
         </button>
       </div>
     </div>

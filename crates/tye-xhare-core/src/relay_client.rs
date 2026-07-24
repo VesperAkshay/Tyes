@@ -18,8 +18,8 @@ pub async fn connect_to_relay(
     let stream = TcpStream::connect(address).await?;
     let mut c = Comm::new(stream);
     
-    let weak_key = [1u8, 2, 3];
-    let pake = pake::init(&weak_key, true).map_err(|e| e.to_string())?;
+    let relay_key = if password.is_empty() { b"default_relay_key".to_vec() } else { password.as_bytes().to_vec() };
+    let pake = pake::init(&relay_key, true).map_err(|e| e.to_string())?;
     
     // send A_bytes
     c.send(&pake.msg).await?;
@@ -30,7 +30,7 @@ pub async fn connect_to_relay(
     let strong_key = pake.update(&b_bytes).map_err(|e| e.to_string())?;
     
     // send salt
-    let mut salt = [0u8; 8];
+    let mut salt = [0u8; 16]; // 128-bit salt
     rand::thread_rng().fill_bytes(&mut salt);
     c.send(&salt).await?;
     

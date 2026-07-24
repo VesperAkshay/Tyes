@@ -21,7 +21,7 @@ export function CodeTicket({ code, label = "SECRET TRANSFER CODE" }: CodeTicketP
   const openExternalUrl = async (url: string) => {
     try {
       const { invoke } = await import("@tauri-apps/api/core");
-      await invoke("open_url", { url });
+      await invoke("open_url_safely", { url });
     } catch {
       window.open(url, "_blank");
     }

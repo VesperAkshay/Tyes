@@ -31,14 +31,30 @@ pub async fn receive(
             let mut buf = [0u8; 1024];
             if let Ok(Ok((len, addr))) = tokio::time::timeout(std::time::Duration::from_millis(500), udp.recv_from(&mut buf)).await {
                 if let Ok(s) = std::str::from_utf8(&buf[..len]) {
-                    if s.starts_with("tye-xhare-rs-reply:") {
-                        let port: u16 = s["tye-xhare-rs-reply:".len()..].parse().unwrap_or(0);
-                        if port > 0 {
-                            let target = format!("{}:{}", addr.ip(), port);
-                            if let Ok(stream) = tokio::time::timeout(std::time::Duration::from_secs(2), tokio::net::TcpStream::connect(&target)).await {
-                                if let Ok(stream) = stream {
-                                    ui.log(format!("Found local sender at {}! Bypassing relay.", target));
-                                    local_conn = Some(crate::comm::Comm::new(stream));
+                    let parts: Vec<&str> = s.splitn(2, '|').collect();
+                    if parts.len() == 2 {
+                        let reply_body = parts[0];
+                        let signature = parts[1];
+                        
+                        use hmac::{Hmac, Mac};
+                        use sha2::Sha256;
+                        
+                        if let Ok(mut mac) = Hmac::<Sha256>::new_from_slice(shared_secret.as_bytes()) {
+                            mac.update(reply_body.as_bytes());
+                            if let Ok(sig_bytes) = hex::decode(signature) {
+                                if mac.verify_slice(&sig_bytes).is_ok() {
+                                    if reply_body.starts_with("tye-xhare-rs-reply:") {
+                                        let port: u16 = reply_body["tye-xhare-rs-reply:".len()..].parse().unwrap_or(0);
+                                        if port > 0 {
+                                            let target = format!("{}:{}", addr.ip(), port);
+                                            if let Ok(stream) = tokio::time::timeout(std::time::Duration::from_secs(2), tokio::net::TcpStream::connect(&target)).await {
+                                                if let Ok(stream) = stream {
+                                                    ui.log(format!("Found local sender at {}! Bypassing relay.", target));
+                                                    local_conn = Some(crate::comm::Comm::new(stream));
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -77,7 +93,10 @@ pub async fn receive(
     message::send(&mut conn, None, &initial_pake_msg).await.map_err(|e| e.to_string())?;
     
     // Receive Sender's PAKE reply + salt
-    let reply_payload = conn.receive().await.map_err(|e| e.to_string())?;
+    let reply_payload = tokio::time::timeout(std::time::Duration::from_secs(30), conn.receive())
+        .await
+        .map_err(|_| "Timeout waiting for PAKE from sender".to_string())?
+        .map_err(|e| e.to_string())?;
     let reply_msg = message::decode(None, reply_payload).map_err(|e| e.to_string())?;
     
     if reply_msg.msg_type != Some(MessageType::PAKE) {
@@ -92,8 +111,11 @@ pub async fn receive(
     
     ui.log(format!("Channel secured!"));
     
-    // Receive FileInfo message from Sender
-    let info_payload = conn.receive().await.map_err(|e| e.to_string())?;
+    // Receive FileInfo message from Sender with timeout
+    let info_payload = tokio::time::timeout(std::time::Duration::from_secs(30), conn.receive())
+        .await
+        .map_err(|_| "Timeout waiting for SenderInfo")?
+        .map_err(|e| e.to_string())?;
     let info_msg = message::decode(Some(&key), info_payload).map_err(|e| e.to_string())?;
     
     if info_msg.msg_type != Some(MessageType::FileInfo) {
@@ -108,11 +130,40 @@ pub async fn receive(
         Vec::new()
     };
     
+    if json_bytes.len() > 1024 * 1024 { // 1MB max for JSON payload
+        return Err("SenderInfo payload too large (DoS protection)".into());
+    }
+    
     let sender_info: SenderInfo = serde_json::from_slice(&json_bytes)
         .map_err(|e| e.to_string())?;
         
     let num_files = sender_info.files_to_transfer.len();
     let total_size: u64 = sender_info.files_to_transfer.iter().map(|f| f.size.unwrap_or(0) as u64).sum();
+    
+    let default_out = dirs::download_dir()
+        .map(|p| p.join("TyeXhare"))
+        .unwrap_or_else(|| PathBuf::from("."));
+        
+    let out_dir_check = dest_dir.map(PathBuf::from).unwrap_or(default_out);
+    tokio::fs::create_dir_all(&out_dir_check).await.map_err(|e| e.to_string())?;
+    
+    if let Ok(canonical_out) = out_dir_check.canonicalize() {
+        use sysinfo::{SystemExt, DiskExt};
+        let mut sys = sysinfo::System::new_all();
+        sys.refresh_disks_list();
+        sys.refresh_disks();
+        
+        for disk in sys.disks() {
+            if canonical_out.starts_with(disk.mount_point()) {
+                let available = disk.available_space();
+                if total_size > available {
+                    return Err(format!("Insufficient disk space. Required: {} bytes, Available: {} bytes", total_size, available));
+                }
+                break;
+            }
+        }
+    }
+    
     let prompt_msg = format!("Accept {} file(s) (Total {} bytes)?", num_files, total_size);
     if !ui.prompt(prompt_msg).await {
         return Err("Transfer rejected by user.".into());
@@ -128,48 +179,82 @@ pub async fn receive(
     
     // Receive each file
     for (file_idx, file_info) in sender_info.files_to_transfer.iter().enumerate() {
+        if file_info.symlink.is_some() {
+            return Err("Security Policy Violation: Symlinks are not permitted and have been explicitly rejected.".into());
+        }
+        
         let name = file_info.name.as_deref().unwrap_or("received_file");
         let size = file_info.size.unwrap_or(0);
+        
+        if size < 0 {
+            return Err(format!("Sender provided negative file size: {}", size));
+        }
+        let size = size as u64; // now safe
+        const MAX_SINGLE_FILE_SIZE: u64 = 250 * 1024 * 1024 * 1024; // 250 GB
+        if size > MAX_SINGLE_FILE_SIZE {
+            return Err(format!("File size {} exceeds maximum allowed (250GB)", size));
+        }
         
         let default_out = dirs::download_dir()
             .map(|p| p.join("TyeXhare"))
             .unwrap_or_else(|| PathBuf::from("."));
             
         let out_dir = dest_dir.map(PathBuf::from).unwrap_or(default_out);
-        let mut file_path = out_dir.clone();
         
-        if let Some(remote_dir) = &file_info.folder_remote {
-            if remote_dir != "." {
-                file_path.push(remote_dir);
-            }
-        }
+        // Ensure out_dir exists so canonicalize works
+        tokio::fs::create_dir_all(&out_dir).await.map_err(|e| e.to_string())?;
+        let canonical_out = out_dir.canonicalize().map_err(|e| format!("Failed to canonicalize out_dir: {}", e))?;
         
-        file_path.push(name);
+        let file_path = build_safe_file_path(&out_dir, file_info.folder_remote.as_deref(), name);
         
         if let Some(parent) = file_path.parent() {
             tokio::fs::create_dir_all(parent).await.map_err(|e| e.to_string())?;
+            
+            // Check for symlink escape
+            if let Ok(canonical_file_parent) = parent.canonicalize() {
+                if !canonical_file_parent.starts_with(&canonical_out) {
+                    return Err(format!("Path escapes output directory (symlink attack): {:?}", file_path));
+                }
+            }
         }
         
         let mut current_file_chunk_ranges = Vec::new();
         let mut pre_existing_bytes = 0u64;
         
+        // Open file for writing before reading metadata to prevent TOCTOU race
+        let mut outfile = if !stdout {
+            let mut opts = OpenOptions::new();
+            opts.write(true).create(true);
+            if !resume {
+                opts.truncate(true);
+            }
+            Some(opts.open(&file_path).await.map_err(|e| e.to_string())?)
+        } else {
+            None
+        };
+        
         if resume {
-            if let Ok(metadata) = tokio::fs::metadata(&file_path).await {
-                if metadata.is_file() {
-                    let existing_size = metadata.len();
-                    if existing_size <= size as u64 && existing_size > 0 {
-                        let chunk_size = (crate::models::TCP_BUFFER_SIZE / 2) as u64;
-                        // Build contiguous chunk list from the beginning of the file.
-                        // This must match the sender's skip_offset computation exactly.
-                        let mut pos = 0u64;
-                        while pos + chunk_size <= existing_size {
-                            current_file_chunk_ranges.push(pos as i64);
-                            pos += chunk_size;
+            if let Some(ref mut file) = outfile {
+                if let Ok(metadata) = file.metadata().await {
+                    if metadata.is_file() {
+                        let existing_size = metadata.len();
+                        if existing_size <= size as u64 && existing_size > 0 {
+                            let chunk_size = (crate::models::TCP_BUFFER_SIZE / 2) as u64;
+                            // Build contiguous chunk list from the beginning of the file.
+                            // This must match the sender's skip_offset computation exactly.
+                            let mut pos = 0u64;
+                            while pos + chunk_size <= existing_size {
+                                current_file_chunk_ranges.push(pos as i64);
+                                pos += chunk_size;
+                            }
+                            // If there's a partial chunk at the end, include it only if the
+                            // existing_size is at a chunk boundary; partial tail chunks are
+                            // re-sent by the sender from the last clean boundary.
+                            pre_existing_bytes = pos; // contiguous safe skip boundary
+                        } else if existing_size > size as u64 {
+                            // File is corrupted or larger than what sender is sending, truncate it safely
+                            let _ = file.set_len(0).await;
                         }
-                        // If there's a partial chunk at the end, include it only if the
-                        // existing_size is at a chunk boundary; partial tail chunks are
-                        // re-sent by the sender from the last clean boundary.
-                        pre_existing_bytes = pos; // contiguous safe skip boundary
                     }
                 }
             }
@@ -195,23 +280,11 @@ pub async fn receive(
         };
         message::send(&mut conn, Some(&key), &ready_msg).await.map_err(|e| e.to_string())?;
         
-        // Open file for writing (append/modify or truncate based on resume flag)
-        let mut outfile = if !stdout {
-            Some(OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(!resume)
-                .open(&file_path)
-                .await
-                .map_err(|e| e.to_string())?)
-        } else {
-            None
-        };
         let mut stdout_handle = if stdout { Some(tokio::io::stdout()) } else { None };
         let mut next_stdout_pos = 0u64;
         let mut stdout_buffer: std::collections::BTreeMap<u64, Vec<u8>> = std::collections::BTreeMap::new();
             
-        let mut bytes_received = pre_existing_bytes as i64;
+        let mut bytes_received = pre_existing_bytes as u64;
         
         if data_conns.is_empty() {
             // Receive file data chunks sequentially over the main connection.
@@ -226,10 +299,12 @@ pub async fn receive(
                 
                 let decrypted = match crypt::decrypt(&enc_payload, &key) {
                     Ok(d) => d,
-                    Err(_) => continue,
+                    Err(e) => return Err(format!("Data corruption or tampering detected during decryption: {}", e)),
                 };
                 let decompressed = compress::decompress(&decrypted);
-                if decompressed.len() < 8 { continue; }
+                if decompressed.len() < 8 { 
+                    return Err("Received corrupted chunk (decompressed length < 8)".into());
+                }
                 
                 let mut pos_bytes = [0u8; 8];
                 pos_bytes.copy_from_slice(&decompressed[..8]);
@@ -248,7 +323,7 @@ pub async fn receive(
                     out.flush().await.map_err(|e| e.to_string())?;
                 }
                 
-                bytes_received += chunk_data.len() as i64;
+                bytes_received += chunk_data.len() as u64;
                 ui.progress(name.to_string(), size as u64, bytes_received as u64);
             }
         } else {
@@ -267,11 +342,11 @@ pub async fn receive(
                         
                         let decrypted = match crypt::decrypt(&enc_payload, &worker_key) {
                             Ok(d) => d,
-                            Err(_) => continue,
+                            Err(_) => break, // Data corruption, break to close channel and fail transfer
                         };
                         
                         let decompressed = compress::decompress(&decrypted);
-                        if decompressed.len() < 8 { continue; }
+                        if decompressed.len() < 8 { break; } // Data corruption
                         
                         let mut pos_bytes = [0u8; 8];
                         pos_bytes.copy_from_slice(&decompressed[..8]);
@@ -303,7 +378,7 @@ pub async fn receive(
                         out.flush().await.map_err(|e| e.to_string())?;
                     }
                     
-                    bytes_received += chunk_data.len() as i64;
+                    bytes_received += chunk_data.len() as u64;
                     ui.progress(name.to_string(), size as u64, bytes_received as u64);
                 } else {
                     break; // Channel closed before we got all bytes
@@ -318,8 +393,31 @@ pub async fn receive(
             }
         }
         
+        if bytes_received < size {
+            return Err(format!("Transfer incomplete for {}: expected {} bytes, got {}", name, size, bytes_received));
+        }
+        
         if let Some(ref mut out) = outfile {
             out.flush().await.map_err(|e| e.to_string())?;
+            
+            if let Some(expected_hash) = &file_info.hash {
+                use std::hash::Hasher;
+                use tokio::io::AsyncReadExt;
+                let mut hasher = twox_hash::XxHash64::with_seed(0);
+                
+                let mut check_file = tokio::fs::File::open(&file_path).await.map_err(|e| e.to_string())?;
+                let mut buf = vec![0u8; 1024 * 64];
+                loop {
+                    let n = check_file.read(&mut buf).await.map_err(|e| e.to_string())?;
+                    if n == 0 { break; }
+                    hasher.write(&buf[..n]);
+                }
+                
+                let actual_hash = hasher.finish().to_be_bytes().to_vec();
+                if actual_hash != *expected_hash {
+                    return Err(format!("WARNING: File integrity check failed for {}. The file may be corrupted.", name));
+                }
+            }
         }
         ui.log(format!("File {} received successfully!", name));
         
@@ -361,4 +459,57 @@ pub async fn receive(
     ui.log("All files received successfully!");
     ui.done("All files received successfully!");
     Ok(())
+}
+
+pub(crate) fn build_safe_file_path(out_dir: &std::path::Path, folder_remote: Option<&str>, name: &str) -> PathBuf {
+    let mut file_path = out_dir.to_path_buf();
+    
+    if let Some(remote_dir) = folder_remote {
+        if remote_dir != "." {
+            for comp in std::path::Path::new(remote_dir).components() {
+                if let std::path::Component::Normal(c) = comp {
+                    file_path.push(c);
+                }
+            }
+        }
+    }
+    
+    if let Some(file_name) = std::path::Path::new(name).file_name() {
+        file_path.push(file_name);
+    } else {
+        file_path.push("unnamed_file");
+    }
+    
+    file_path
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn test_build_safe_file_path() {
+        let base = Path::new("/safe/dir");
+        
+        // Normal case
+        let p = build_safe_file_path(base, Some("subfolder"), "file.txt");
+        assert_eq!(p, base.join("subfolder").join("file.txt"));
+        
+        // Path traversal in remote_dir (Zip Slip)
+        let p = build_safe_file_path(base, Some("../../../etc"), "passwd");
+        assert_eq!(p, base.join("etc").join("passwd"));
+        
+        // Absolute path in remote_dir
+        let p = build_safe_file_path(base, Some("/etc"), "passwd");
+        assert_eq!(p, base.join("etc").join("passwd"));
+        
+        // Path traversal in name
+        let p = build_safe_file_path(base, Some("sub"), "../../../passwd");
+        assert_eq!(p, base.join("sub").join("passwd"));
+        
+        // Absolute path in name
+        let p = build_safe_file_path(base, None, "/etc/passwd");
+        assert_eq!(p, base.join("passwd"));
+    }
 }

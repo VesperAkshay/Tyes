@@ -123,7 +123,14 @@ pub fn local_ip() -> String {
 
 /// Check if IP address is in private network space
 pub fn is_local_ip(ipaddress: &str) -> bool {
-    ipaddress.contains("127.0.0.1") || ipaddress.starts_with("192.168.") || ipaddress.starts_with("10.") || ipaddress.starts_with("172.")
+    if let Ok(ip) = ipaddress.parse::<std::net::IpAddr>() {
+        match ip {
+            std::net::IpAddr::V4(ipv4) => ipv4.is_private() || ipv4.is_loopback(),
+            std::net::IpAddr::V6(ipv6) => ipv6.is_loopback(),
+        }
+    } else {
+        false
+    }
 }
 
 

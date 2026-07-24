@@ -7,10 +7,11 @@ import { FiMonitor, FiSmartphone, FiBox, FiWifi } from "react-icons/fi";
 import { soundEngine } from "@/lib/audio";
 
 export interface DiscoveredDevice {
-  name: String;
-  os: String;
-  code: String;
-  ip: String;
+  name: string;
+  os: string;
+  device_id: string;
+  code: string;
+  ip: string;
   timestamp: number;
 }
 
