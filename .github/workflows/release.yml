@@ -15,8 +15,8 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
-            bundle_path: './apps/tyegit/src-tauri/target/aarch64-apple-darwin/release/bundle'
+            args: ''
+            bundle_path: './apps/tyegit/src-tauri/target/release/bundle'
           - platform: 'windows-latest'
             args: ''
             bundle_path: './apps/tyegit/src-tauri/target/release/bundle'
