@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { Tab, TransferState, TransferEventPayload, TransferStats } from "@/types";
 
 const sanitizeError = (err: any): string => {
@@ -244,7 +245,16 @@ export function useTransfer() {
 
   const selectFiles = async (): Promise<string[]> => {
     try {
-      return await invoke<string[]>("pick_files");
+      const selected = await openDialog({
+        multiple: true,
+        title: "Select Files to Send",
+      });
+      if (Array.isArray(selected)) {
+        return selected;
+      } else if (selected) {
+        return [selected];
+      }
+      return [];
     } catch (err) {
       console.error("Error picking files:", err);
       return [];
@@ -253,7 +263,12 @@ export function useTransfer() {
 
   const selectFolder = async (): Promise<string | null> => {
     try {
-      return await invoke<string | null>("pick_folder");
+      const selected = await openDialog({
+        directory: true,
+        multiple: false,
+        title: "Select Folder to Send or Receive",
+      });
+      return selected && !Array.isArray(selected) ? selected : null;
     } catch (err) {
       console.error("Error picking folder:", err);
       return null;

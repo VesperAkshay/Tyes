@@ -33,43 +33,6 @@ impl Default for AppState {
     }
 }
 
-#[tauri::command]
-async fn pick_files() -> Result<Vec<String>, String> {
-    let files = rfd::AsyncFileDialog::new()
-        .set_title("Select Files to Send")
-        .pick_files()
-        .await;
-
-    if let Some(files) = files {
-        Ok(files.into_iter().map(|f| f.path().to_string_lossy().to_string()).collect())
-    } else {
-        Ok(vec![])
-    }
-}
-
-#[tauri::command]
-fn open_url_safely(url: String) -> Result<(), String> {
-    if url.starts_with("http://") || url.starts_with("https://") {
-        open::that(&url).map_err(|e| e.to_string())?;
-        Ok(())
-    } else {
-        Err("Invalid or unsafe URL".into())
-    }
-}
-
-#[tauri::command]
-async fn pick_folder() -> Result<Option<String>, String> {
-    let folder = rfd::AsyncFileDialog::new()
-        .set_title("Select Folder to Send or Receive")
-        .pick_folder()
-        .await;
-
-    if let Some(folder) = folder {
-        Ok(Some(folder.path().to_string_lossy().to_string()))
-    } else {
-        Ok(None)
-    }
-}
 
 #[tauri::command]
 async fn respond_prompt(state: State<'_, AppState>, accepted: bool) -> Result<(), String> {
@@ -323,6 +286,7 @@ pub fn run() {
     let discovery_state_wrapper = discovery::DiscoveryStateWrapper(discovery_state.clone());
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
         .manage(discovery_state_wrapper)
         .invoke_handler(tauri::generate_handler![
@@ -332,9 +296,6 @@ pub fn run() {
             respond_prompt,
             start_local_relay,
             stop_local_relay,
-            pick_files,
-            pick_folder,
-            open_url_safely,
             open_download_folder,
             get_secure_setting,
             set_secure_setting,

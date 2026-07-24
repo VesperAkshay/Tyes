@@ -24,10 +24,10 @@ log = "0.4"
 tauri = { version = "2.11.3", features = [] }
 tauri-plugin-log = "2"
 tye-xhare-core = { path = "../../../crates/tye-xhare-core" }
-rfd = "0.15"
 tokio = { version = "1.0", features = ["full"] }
 socket2 = "0.5"
 dirs = "6.0"
 rand = "0.9.5"
 open = "5.4.0"
 tye-core-vault.workspace = true
+tauri-plugin-dialog = "2.7.2"
