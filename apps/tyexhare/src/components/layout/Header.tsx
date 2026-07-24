@@ -1,10 +1,8 @@
 "use client";
 
-import { FiSend, FiDownload, FiSettings, FiActivity, FiRadio } from "react-icons/fi";
+import { FiSend, FiDownload, FiSettings, FiActivity, FiRadio, FiClock } from "react-icons/fi";
 import { Tab, TransferState } from "@/types";
-
-import { useRef, useEffect } from "react";
-import anime from "animejs";
+import { cn } from "@/lib/utils";
 
 interface HeaderProps {
   activeTab: Tab;
@@ -14,126 +12,89 @@ interface HeaderProps {
 
 export function Header({ activeTab, setActiveTab, transferState }: HeaderProps) {
   const isTransferring = transferState === "transferring";
-  const navRef = useRef<HTMLElement>(null);
-  const indicatorRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!navRef.current || !indicatorRef.current) return;
-    
-    // Find the active tab button
-    const activeBtn = navRef.current.querySelector(`[data-tab="${activeTab}"]`) as HTMLElement;
-    if (activeBtn) {
-      anime({
-        targets: indicatorRef.current,
-        left: activeBtn.offsetLeft,
-        width: activeBtn.offsetWidth,
-        backgroundColor: activeTab === "send" ? "var(--primary)" : 
-                         activeTab === "receive" ? "var(--secondary)" : 
-                         activeTab === "nearby" ? "var(--sidebar-ring)" :
-                         activeTab === "transfer" ? "#22c55e" : 
-                         "var(--foreground)",
-        duration: 400,
-        easing: "spring(1, 80, 10, 0)"
-      });
-    }
-  }, [activeTab, isTransferring]);
+  const navItems = [
+    { id: "nearby", label: "RADAR", icon: FiRadio, color: "var(--sidebar-ring)" },
+    { id: "send", label: "SEND", icon: FiSend, color: "var(--primary)" },
+    { id: "receive", label: "RECEIVE", icon: FiDownload, color: "var(--secondary)" },
+    { id: "history", label: "HISTORY", icon: FiClock, color: "var(--foreground)" },
+    { id: "settings", label: "SETTINGS", icon: FiSettings, color: "var(--foreground)" },
+  ] as const;
 
   return (
-    <header className="flex flex-col mb-4 border-b-2 border-foreground/20 pb-3 select-none">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3.5">
-          <img src="/TyeXhareLogo.png" alt="Tye-Xhare Logo" className="w-16 h-16 object-contain drop-shadow-md" />
-          <h1 className="text-3xl font-pixel text-foreground">Tye-Xhare</h1>
-        </div>
-        {isTransferring && activeTab !== "transfer" && (
-          <button
-            onClick={() => setActiveTab("transfer")}
-            className="flex items-center space-x-2 bg-primary text-background text-xs font-pixel px-3 py-1.5 rounded animate-pulse hover:opacity-90 transition-opacity btn-3d"
-          >
-            <FiActivity className="w-4 h-4" />
-            <span>TRANSFER IN PROGRESS — VIEW LIVE</span>
-          </button>
-        )}
+    <nav className="flex md:flex-col justify-between items-center md:items-stretch bg-muted/40 backdrop-blur-md md:w-64 h-16 md:h-full border-t-2 md:border-t-0 md:border-r-2 border-primary/20 shrink-0 z-40 order-last md:order-first px-2 md:px-0 md:py-6 shadow-2xl">
+      
+      {/* Desktop Logo Header */}
+      <div className="hidden md:flex flex-col items-center justify-center mb-8 px-4 space-y-4">
+        <img src="/TyeXhareLogo.png" alt="Tye-Xhare Logo" className="w-20 h-20 object-contain drop-shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]" />
+        <h1 className="text-2xl font-pixel text-foreground text-center tracking-widest drop-shadow-md">TYE-XHARE</h1>
       </div>
 
-      <nav ref={navRef} className="flex space-x-6 items-center relative pb-2">
-        <button
-          data-tab="send"
-          onClick={() => setActiveTab("send")}
-          className={`flex items-center space-x-2 text-base font-bold transition-colors z-10 ${
-            activeTab === "send" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <FiSend className="w-4 h-4" />
-          <span>SEND</span>
-        </button>
+      {/* Navigation Links */}
+      <div className="flex md:flex-col w-full h-full md:h-auto items-center justify-around md:justify-start md:space-y-3 md:px-4">
+        {navItems.map((item) => {
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              data-tab={item.id}
+              className={cn(
+                "relative flex md:w-full items-center justify-center md:justify-start space-x-0 md:space-x-4 p-2 md:px-5 md:py-3.5 rounded-xl transition-all duration-300 group overflow-hidden",
+                isActive ? "bg-background shadow-lg border-primary/40 scale-105 md:scale-100" : "hover:bg-foreground/5 active:scale-95",
+                "border-2 border-transparent"
+              )}
+            >
+              {isActive && (
+                <div 
+                  className="absolute inset-0 opacity-15 pointer-events-none" 
+                  style={{ backgroundColor: item.color }} 
+                />
+              )}
+              {isActive && (
+                <div 
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1/2 rounded-r-full hidden md:block shadow-[0_0_10px_currentColor]" 
+                  style={{ backgroundColor: item.color }} 
+                />
+              )}
+              
+              <item.icon 
+                className={cn(
+                  "w-6 h-6 md:w-5 md:h-5 transition-transform duration-300", 
+                  isActive ? "scale-110 drop-shadow-md" : "group-hover:scale-110 opacity-70"
+                )} 
+                style={{ color: isActive ? item.color : "currentColor" }} 
+              />
+              
+              <span 
+                className={cn(
+                  "hidden md:block font-pixel text-xs tracking-widest transition-colors",
+                  isActive ? "opacity-100 drop-shadow-sm" : "opacity-70 group-hover:opacity-100"
+                )}
+                style={{ color: isActive ? item.color : "currentColor" }}
+              >
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
 
-        <button
-          data-tab="receive"
-          onClick={() => setActiveTab("receive")}
-          className={`flex items-center space-x-2 text-base font-bold transition-colors z-10 ${
-            activeTab === "receive" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <FiDownload className="w-4 h-4" />
-          <span>RECEIVE</span>
-        </button>
-
-        <button
-          data-tab="nearby"
-          onClick={() => setActiveTab("nearby")}
-          className={`flex items-center space-x-2 text-base font-bold transition-colors z-10 ${
-            activeTab === "nearby" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <FiRadio className="w-4 h-4" />
-          <span>NEARBY</span>
-        </button>
-
+        {/* Active Transfer Pill (Desktop only) */}
         {isTransferring && (
-          <button
-            data-tab="transfer"
-            onClick={() => setActiveTab("transfer")}
-            className={`flex items-center space-x-2 text-base font-bold transition-colors font-pixel z-10 ${
-              activeTab === "transfer" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <FiActivity className={`w-4 h-4 ${activeTab === "transfer" ? "text-green-500" : ""}`} />
-            <span>TRANSFER MONITOR</span>
-          </button>
+          <div className="hidden md:block mt-auto pt-8 w-full animate-in fade-in slide-in-from-bottom-4">
+            <button
+              onClick={() => setActiveTab("transfer")}
+              className={cn(
+                "w-full flex flex-col items-center space-y-3 bg-[#22c55e]/20 text-[#22c55e] border-2 border-[#22c55e]/50 p-4 rounded-xl hover:bg-[#22c55e]/30 transition-colors shadow-[0_0_20px_rgba(34,197,94,0.3)] group",
+                activeTab === "transfer" && "bg-[#22c55e]/30 border-[#22c55e]"
+              )}
+            >
+              <FiActivity className="w-8 h-8 animate-pulse group-hover:scale-110 transition-transform" />
+              <span className="font-pixel text-[10px] text-center tracking-widest">LIVE TRANSFER</span>
+            </button>
+          </div>
         )}
-
-        <div className="flex items-center ml-auto space-x-6 z-10">
-          <button
-            data-tab="history"
-            onClick={() => setActiveTab("history")}
-            className={`flex items-center space-x-2 text-base font-bold transition-colors ${
-              activeTab === "history" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <FiActivity className="w-4 h-4" />
-            <span>HISTORY</span>
-          </button>
-
-          <button
-            data-tab="settings"
-            onClick={() => setActiveTab("settings")}
-            className={`flex items-center space-x-2 text-base font-bold transition-colors ${
-              activeTab === "settings" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <FiSettings className="w-4 h-4" />
-            <span>SETTINGS</span>
-          </button>
-        </div>
-
-        {/* Animated Indicator */}
-        <div 
-          ref={indicatorRef} 
-          className="absolute bottom-0 h-1 bg-primary rounded-t-sm"
-          style={{ width: 0, left: 0 }}
-        />
-      </nav>
-    </header>
+      </div>
+    </nav>
   );
 }

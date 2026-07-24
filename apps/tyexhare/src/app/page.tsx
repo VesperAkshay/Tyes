@@ -215,72 +215,92 @@ export default function Home() {
         />
       )}
 
-      <div className="flex-1 flex flex-col p-5 overflow-hidden">
+      {/* The Adaptive App Shell */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        
+        {/* Navigation (Bottom on Mobile, Left Sidebar on Desktop) */}
         <Header activeTab={activeTab} setActiveTab={setActiveTab} transferState={transferState} />
 
-        <section className="flex-1 flex flex-col items-center justify-start relative overflow-y-auto px-4 py-1 my-auto">
-          {/* Main View Router */}
-          {activeTab === "transfer" ? (
-            transferState === "complete" || transferState === "error" ? (
-              <CompleteView
-                message={doneMessage}
-                errorMessage={errorMessage}
-                isSender={isSender}
-                onDone={() => {
-                  resetTransfer();
-                  setActiveTab("send");
-                }}
-                onOpenFolder={() => openDownloadFolder(defaultOutDir || undefined)}
-              />
-            ) : (
-              <TransferView
-                stats={stats}
+        {/* Main Stage */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-background relative">
+          
+          {/* Mobile Active Transfer Pill (Floating Top) */}
+          {transferState === "transferring" && activeTab !== "transfer" && (
+            <div className="md:hidden absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4">
+              <button
+                onClick={() => setActiveTab("transfer")}
+                className="flex items-center space-x-2 bg-[#22c55e] text-[#121212] px-4 py-2 rounded-full shadow-[0_0_20px_rgba(34,197,94,0.6)] font-pixel text-xs animate-pulse"
+              >
+                <FiActivity className="w-4 h-4" />
+                <span>TRANSFER LIVE</span>
+              </button>
+            </div>
+          )}
+
+          {/* Main View Router Content Area */}
+          <section className="flex-1 flex flex-col items-center justify-start relative overflow-y-auto px-4 py-4 md:py-8 my-auto">
+            {activeTab === "transfer" ? (
+              transferState === "complete" || transferState === "error" ? (
+                <CompleteView
+                  message={doneMessage}
+                  errorMessage={errorMessage}
+                  isSender={isSender}
+                  onDone={() => {
+                    resetTransfer();
+                    setActiveTab("send");
+                  }}
+                  onOpenFolder={() => openDownloadFolder(defaultOutDir || undefined)}
+                />
+              ) : (
+                <TransferView
+                  stats={stats}
+                  secretCode={secretCode}
+                  logs={logs}
+                  isSender={isSender}
+                  promptMessage={promptMessage}
+                  onRespondPrompt={respondPrompt}
+                  onCancel={cancelTransfer}
+                />
+              )
+            ) : activeTab === "receive" ? (
+              <ReceiveView
                 secretCode={secretCode}
-                logs={logs}
-                isSender={isSender}
+                setSecretCode={setSecretCode}
+                onReceive={handleReceive}
                 promptMessage={promptMessage}
                 onRespondPrompt={respondPrompt}
-                onCancel={cancelTransfer}
+                selectFolder={selectFolder}
               />
-            )
-          ) : activeTab === "receive" ? (
-            <ReceiveView
-              secretCode={secretCode}
-              setSecretCode={setSecretCode}
-              onReceive={handleReceive}
-              promptMessage={promptMessage}
-              onRespondPrompt={respondPrompt}
-              selectFolder={selectFolder}
-            />
-          ) : activeTab === "settings" ? (
-            <SettingsView
-              relayAddr={relayAddr}
-              setRelayAddr={setRelayAddr}
-              relayPass={relayPass}
-              setRelayPass={setRelayPass}
-              defaultOutDir={defaultOutDir}
-              setDefaultOutDir={setDefaultOutDir}
-              embeddedRelayRunning={embeddedRelayRunning}
-              embeddedRelayPorts={embeddedRelayPorts}
-              startEmbeddedRelay={startLocalRelay}
-              stopEmbeddedRelay={stopLocalRelay}
-              selectFolder={selectFolder}
-            />
-          ) : activeTab === "history" ? (
-            <HistoryView />
-          ) : activeTab === "nearby" ? (
-            <RadarView onDeviceClick={handleDeviceClick} />
-          ) : (
-            <SendView
-              onSendFiles={handleSendFiles}
-              onSendText={handleSendText}
-              selectFiles={selectFiles}
-              selectFolder={selectFolder}
-            />
-          )}
-        </section>
+            ) : activeTab === "settings" ? (
+              <SettingsView
+                relayAddr={relayAddr}
+                setRelayAddr={setRelayAddr}
+                relayPass={relayPass}
+                setRelayPass={setRelayPass}
+                defaultOutDir={defaultOutDir}
+                setDefaultOutDir={setDefaultOutDir}
+                embeddedRelayRunning={embeddedRelayRunning}
+                embeddedRelayPorts={embeddedRelayPorts}
+                startEmbeddedRelay={startLocalRelay}
+                stopEmbeddedRelay={stopLocalRelay}
+                selectFolder={selectFolder}
+              />
+            ) : activeTab === "history" ? (
+              <HistoryView />
+            ) : activeTab === "nearby" ? (
+              <RadarView onDeviceClick={handleDeviceClick} />
+            ) : (
+              <SendView
+                onSendFiles={handleSendFiles}
+                onSendText={handleSendText}
+                selectFiles={selectFiles}
+                selectFolder={selectFolder}
+              />
+            )}
+          </section>
 
-        <StatusBar relayAddr={relayAddr} />
+          <StatusBar relayAddr={relayAddr} />
+        </div>
       </div>
 
       {/* Radar Incoming Pair Request Modal */}
