@@ -90,10 +90,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Install AWS CLI
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 2
+      - name: Install AWS CLI (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: choco install awscli
+
+      - name: Install AWS CLI (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: brew install awscli
+
+      - name: Install AWS CLI (Ubuntu)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install --update
 
       - name: Build Design System
         run: pnpm --filter @tyes/design-system run build
@@ -149,10 +159,11 @@ jobs:
         with:
           node-version: 20
           
-      - name: Install AWS CLI
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 2
+      - name: Install AWS CLI (Ubuntu)
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install --update
 
       - name: Generate latest.json and upload
         env:
