@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { FiWifi } from "react-icons/fi";
+import { FiWifi, FiActivity } from "react-icons/fi";
 import { Header } from "@/components/layout/Header";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { TitleBar } from "@/components/layout/TitleBar";
