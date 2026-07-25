@@ -124,12 +124,12 @@ export function SendView({ onSendFiles, onSendText, selectFiles, selectFolder }:
 
           {/* Additional Options */}
           <div className="mt-6 flex w-full justify-between items-center">
+            {/* @ts-ignore: webkitdirectory and directory are non-standard but required for folder picking in some browsers */}
             <input
               type="file"
               id="html5-folder-picker"
               className="hidden"
-              webkitdirectory=""
-              directory=""
+              {...{ webkitdirectory: "", directory: "" }}
               multiple
               onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) {
