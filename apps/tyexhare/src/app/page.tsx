@@ -190,7 +190,7 @@ export default function Home() {
       setIsSender(true);
       const code = Math.floor(1000 + Math.random() * 9000) + "-radar-transfer";
       try {
-        await invoke("send_pair_request", { targetDeviceId: device.device_id, code });
+        await invoke("send_pair_request", { targetDeviceId: device.device_id, targetIp: device.ip, code });
       } catch (err) {
         console.warn("Could not send pair request", err);
       }

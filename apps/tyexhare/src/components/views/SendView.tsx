@@ -124,6 +124,23 @@ export function SendView({ onSendFiles, onSendText, selectFiles, selectFolder }:
 
           {/* Additional Options */}
           <div className="mt-6 flex w-full justify-between items-center">
+            <input
+              type="file"
+              id="html5-folder-picker"
+              className="hidden"
+              webkitdirectory=""
+              directory=""
+              multiple
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  // HTML5 returns File objects, but we need paths for Tauri
+                  // Since HTML5 doesn't give absolute paths, this fallback is limited on Desktop
+                  // But on Android, we should really just use selectFiles if dialog fails
+                  // Actually, let's just trigger the Tauri dialog for Add Folder
+                  handlePickFolder();
+                }
+              }}
+            />
             <button
               onClick={handlePickFolder}
               className="text-foreground hover:text-primary font-bold flex items-center space-x-2 text-sm border-2 border-foreground/20 border-b-4 border-r-4 active:translate-x-[2px] active:translate-y-[2px] active:border-b-2 active:border-r-2 px-4 py-2 bg-background hover:border-primary transition-all rounded"

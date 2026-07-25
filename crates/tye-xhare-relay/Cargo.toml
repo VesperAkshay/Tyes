@@ -1,0 +1,13 @@
+[package]
+name = "tye-xhare-relay"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tye-xhare-core = { path = "../tye-xhare-core" }
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+log = "0.4"
+bytes = "1.0"
+rand = "0.8"
+clap = { version = "4.0", features = ["derive"] }

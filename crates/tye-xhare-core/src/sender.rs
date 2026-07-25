@@ -101,53 +101,40 @@ pub async fn send(
     let relay_result = connect_to_relay(relay_address, relay_password, room_name, None).await;
     
     let room_waiting_future = async {
-        if let Ok((relay_conn, _banner, _ipaddr)) = relay_result {
-            // Relay available — race between LAN direct and relay forwarding.
-            // We must send periodic keep-alive pings to prevent the idle TCP socket
-            // from being killed by the OS or routers while waiting for the receiver.
-            let mut c = relay_conn;
-            let mut ping_interval = tokio::time::interval(std::time::Duration::from_secs(10));
-            ping_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-            ping_interval.tick().await; // consume the immediate first tick
+        let mut c = match relay_result {
+            Ok((conn, _banner, _ip)) => conn,
+            Err(e) => {
+                ui.log(format!("Relay unavailable: {}. Waiting for direct LAN connection...", e));
+                return local_conn_rx.recv().await.ok_or(format!("No connection received (relay down: {}, no LAN peer)", e));
+            }
+        };
 
-            loop {
-                tokio::select! {
-                    // LAN peer connected directly
-                    Some(local_conn) = local_conn_rx.recv() => {
-                        ui.log(format!("Connected directly over Local LAN! Bypassing relay."));
-                        return Ok(local_conn);
-                    },
-                    // Received a message from the relay (expect b"handshake" when receiver joins)
-                    result = c.receive() => {
-                        match result {
-                            Ok(data) if data == b"handshake" => {
-                                return Ok(c);
-                            },
-                            Ok(data) if data == b"\x01" || data == b"ping" => {
-                                continue; // server-side keep-alive, ignore
-                            },
-                            Ok(_) => {
-                                return Err("unexpected relay message".to_string());
-                            },
-                            Err(e) => {
-                                return Err(format!("Relay connection lost: {}", e));
-                            }
-                        }
-                    },
-                    // Send a keep-alive ping every 10 seconds to keep the TCP socket alive
-                    _ = ping_interval.tick() => {
-                        if let Err(e) = c.send(b"\x01").await {
-                            return Err(format!("Failed to send keep-alive: {}", e));
+        loop {
+            tokio::select! {
+                Some(mut local_conn) = local_conn_rx.recv() => {
+                    ui.log(format!("Direct LAN connection established! Ignoring relay."));
+                    if let Err(e) = local_conn.send(b"handshake").await {
+                        return Err(format!("Failed to send LAN handshake: {}", e));
+                    }
+                    return Ok(local_conn);
+                },
+                result = c.receive() => {
+                    match result {
+                        Ok(data) if data == b"handshake" => {
+                            return Ok(c);
+                        },
+                        Ok(data) if data == b"\x01" || data == b"ping" => {
+                            continue; // server-side keep-alive, ignore
+                        },
+                        Ok(_) => {
+                            return Err("unexpected relay message".to_string());
+                        },
+                        Err(e) => {
+                            return Err(format!("Relay connection lost: {}", e));
                         }
                     }
                 }
             }
-        } else if let Err(err) = relay_result {
-            // Relay unavailable — LAN-only mode, wait for direct connection
-            ui.log(format!("Relay unavailable: {}. Waiting for direct LAN connection...", err));
-            local_conn_rx.recv().await.ok_or(format!("No connection received (relay down: {}, no LAN peer)", err))
-        } else {
-            unreachable!()
         }
     };
 

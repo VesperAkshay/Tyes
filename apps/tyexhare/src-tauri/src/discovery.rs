@@ -9,6 +9,7 @@ use rand::Rng;
 const DISCOVERY_PORT: u16 = 9020;
 const BROADCAST_INTERVAL_SECS: u64 = 3;
 const MAGIC_HEADER: &str = "TYEXHARE:v1";
+const REPLY_HEADER: &str = "TYEXHARE_REPLY:v1";
 const PAIR_HEADER: &str = "TYEXHARE_PAIR:v1";
 
 #[derive(Clone)]
@@ -62,6 +63,7 @@ pub async fn set_discovery_state(
 #[tauri::command]
 pub async fn send_pair_request(
     target_device_id: String,
+    target_ip: String,
     code: String,
     state: State<'_, DiscoveryStateWrapper>,
 ) -> Result<(), String> {
@@ -75,9 +77,9 @@ pub async fn send_pair_request(
     let payload = format!("{}:{}:{}:{}", PAIR_HEADER, target_device_id, sender_name, code);
     let socket = UdpSocket::bind("0.0.0.0:0").await.map_err(|e| e.to_string())?;
     let _ = socket.set_broadcast(true);
-    socket.send_to(payload.as_bytes(), ("255.255.255.255", DISCOVERY_PORT))
-        .await
-        .map_err(|e| e.to_string())?;
+    let _ = socket.send_to(payload.as_bytes(), ("255.255.255.255", DISCOVERY_PORT)).await;
+    let _ = socket.send_to(payload.as_bytes(), (target_ip.as_str(), DISCOVERY_PORT)).await;
+
     Ok(())
 }
 
@@ -155,12 +157,12 @@ pub fn start_discovery_service(app_handle: AppHandle, state: Arc<Mutex<Discovery
                     } else {
                         // Broadcast discovery packet: TYEXHARE:v1:<name>:<os>:<device_id>
                         let parts: Vec<&str> = msg.split(':').collect();
-                        if parts.len() >= 5 && parts[0] == "TYEXHARE" && parts[1] == "v1" {
+                        if parts.len() >= 5 && (parts[0] == "TYEXHARE" || parts[0] == "TYEXHARE_REPLY") && parts[1] == "v1" {
                             let name = parts[2].to_string();
                             let os = parts[3].to_string();
                             let device_id = parts[4..].join(":");
 
-                            let current_state = state.lock().await;
+                            let current_state = state.lock().await.clone();
                             if name != current_state.name || device_id != current_state.device_id {
                                 let timestamp = std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
@@ -168,7 +170,7 @@ pub fn start_discovery_service(app_handle: AppHandle, state: Arc<Mutex<Discovery
                                     .as_secs();
 
                                 let device = DiscoveredDevice {
-                                    name,
+                                    name: name.clone(),
                                     os,
                                     device_id: device_id.clone(),
                                     code: "".to_string(), // Code is not exposed via broadcast
@@ -177,6 +179,15 @@ pub fn start_discovery_service(app_handle: AppHandle, state: Arc<Mutex<Discovery
                                 };
 
                                 let _ = app_handle_clone.emit("device_discovered", device);
+
+                                // If this was a broadcast (not a reply), send a unicast reply back!
+                                // This is the "Ping-Pong" strategy: Android can't receive broadcasts,
+                                // but it CAN receive unicast UDP packets!
+                                if parts[0] == "TYEXHARE" && !current_state.name.is_empty() {
+                                    let my_os = std::env::consts::OS;
+                                    let reply_payload = format!("{}:{}:{}:{}", REPLY_HEADER, current_state.name, my_os, current_state.device_id);
+                                    let _ = socket.send_to(reply_payload.as_bytes(), addr).await;
+                                }
                             }
                         }
                     }

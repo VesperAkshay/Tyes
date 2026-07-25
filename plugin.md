@@ -130,3 +130,7 @@ cargo run
 > [!WARNING]
 > **Hook Names Matter**
 > The `hooks` array in the manifest *must* perfectly match the `#[plugin_fn]` function name in your Rust code (e.g., `pre_commit`). Tyegit relies on this exact string to invoke the WASM binary.
+
+
+
+agy --conversation=de5bef2b-11ba-4428-8059-14ecc23c6ab8

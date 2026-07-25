@@ -7513,6 +7513,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "tye-xhare-relay"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "clap",
+ "futures",
+ "log",
+ "rand 0.8.7",
+ "tokio",
+ "tye-xhare-core",
+]
+
+[[package]]
 name = "tyegit"
 version = "1.0.0"
 dependencies = [
