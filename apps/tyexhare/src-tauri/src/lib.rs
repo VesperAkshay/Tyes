@@ -280,6 +280,25 @@ fn set_secure_setting(key: String, value: String) -> Result<(), String> {
     tye_core_vault::set(&vault_key, &value).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn cache_file_for_transfer(
+    app: tauri::AppHandle,
+    filename: String,
+    data: Vec<u8>
+) -> Result<String, String> {
+    use tauri::Manager;
+    let cache_dir = app.path().app_cache_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
+    
+    // Add a unique prefix to prevent collisions
+    let unique_name = format!("{}_{}", tye_xhare_core::utils::get_random_name(), filename);
+    let file_path = cache_dir.join(unique_name);
+    
+    tokio::fs::write(&file_path, data).await.map_err(|e| e.to_string())?;
+    
+    file_path.to_str().map(|s| s.to_string()).ok_or_else(|| "Invalid path string".into())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let discovery_state = std::sync::Arc::new(tokio::sync::Mutex::new(discovery::DiscoveryState::default()));
@@ -299,6 +318,7 @@ pub fn run() {
             open_download_folder,
             get_secure_setting,
             set_secure_setting,
+            cache_file_for_transfer,
             discovery::set_discovery_state,
             discovery::send_pair_request
         ])

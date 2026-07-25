@@ -61,6 +61,32 @@ export function SendView({ onSendFiles, onSendText, selectFiles, selectFolder }:
     }
   };
 
+  const handleHtml5Files = async (files: FileList) => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const newPaths: string[] = [];
+    
+    // We'll read files sequentially to avoid OOM on mobile
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        // Call the new Rust command to cache the file and get a POSIX path
+        const cachePath = await invoke<string>("cache_file_for_transfer", {
+          filename: file.name,
+          data: Array.from(uint8Array) // Convert to JS array so Tauri can serialize to Vec<u8>
+        });
+        newPaths.push(cachePath);
+      } catch (err) {
+        console.error("Failed to read HTML5 file:", err);
+      }
+    }
+    
+    if (newPaths.length > 0) {
+      setSelectedPaths((prev) => [...prev, ...newPaths]);
+    }
+  };
+
   return (
     <div ref={containerRef} className="w-full max-w-xl flex flex-col items-center">
       {/* Mode Switcher */}
@@ -87,11 +113,28 @@ export function SendView({ onSendFiles, onSendText, selectFiles, selectFolder }:
 
       {sendType === "files" ? (
         <div className="w-full flex flex-col items-center">
-          {/* Dropzone / File Picker Box */}
           <div
-            onClick={handlePickFiles}
+            onClick={() => {
+              const html5picker = document.getElementById("html5-file-picker");
+              if (html5picker) {
+                html5picker.click();
+              } else {
+                handlePickFiles(); // Fallback to Tauri dialog if needed
+              }
+            }}
             className="w-full border-2 border-foreground/30 border-dashed bg-stipple p-8 flex flex-col items-center justify-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-all rounded-md group shadow-inner"
           >
+            <input
+              type="file"
+              id="html5-file-picker"
+              className="hidden"
+              multiple
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  handleHtml5Files(e.target.files);
+                }
+              }}
+            />
             <div className="w-20 h-20 relative mb-4 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300 flex items-center justify-center">
               <svg className="w-16 h-16 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />

@@ -156,7 +156,7 @@ pub async fn receive(
         for disk in sys.disks() {
             if canonical_out.starts_with(disk.mount_point()) {
                 let available = disk.available_space();
-                if total_size > available {
+                if available > 0 && total_size > available {
                     return Err(format!("Insufficient disk space. Required: {} bytes, Available: {} bytes", total_size, available));
                 }
                 break;
