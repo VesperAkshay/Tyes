@@ -54,6 +54,10 @@ jobs:
         run: pnpm tauri android init
         working-directory: ./apps/tyexhare
 
+      - name: Patch Android Permissions
+        run: |
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />' apps/tyexhare/src-tauri/gen/android/app/src/main/AndroidManifest.xml
+
       - name: Build Android APK
         run: pnpm tauri android build --debug --apk
         working-directory: ./apps/tyexhare
