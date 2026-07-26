@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { downloadDir } from "@tauri-apps/api/path";
 import { Tab, TransferState, TransferEventPayload, TransferStats } from "@/types";
 
 const sanitizeError = (err: any): string => {
@@ -185,11 +186,21 @@ export function useTransfer() {
     lastProgressRef.current = { bytes: 0, timestamp: Date.now() };
 
     try {
+      let finalOutDir = outDir;
+      if (!finalOutDir) {
+        try {
+          const defaultDl = await downloadDir();
+          finalOutDir = `${defaultDl}/TyeXhare`;
+        } catch (e) {
+          console.warn("Failed to get download directory", e);
+        }
+      }
+
       await invoke("start_receive", {
         code,
         relay: relay || null,
         pass: pass || null,
-        outDir: outDir || null,
+        outDir: finalOutDir || null,
         resume: resume ?? true,
         autoAccept: autoAccept ?? false,
       });
