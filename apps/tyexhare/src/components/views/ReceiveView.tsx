@@ -25,14 +25,10 @@ export function ReceiveView({
   const [outputDir, setOutputDir] = useState<string>("");
   const [autoAccept, setAutoAccept] = useState<boolean>(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
-    // Basic user agent check for mobile devices to conditionally render the camera button
-    setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-    
     if (containerRef.current) {
       anime({
         targets: containerRef.current.children,
@@ -97,18 +93,16 @@ export function ReceiveView({
       >
         <div className="flex justify-between w-full items-center mb-3">
           <label className="font-pixel text-muted-foreground text-xs tracking-wider">SECRET_CODE_REQUIRED</label>
-          {isMobile && (
-            <button
-              onClick={() => setIsScanning(!isScanning)}
-              className={`px-4 py-2 border-2 rounded font-bold font-mono text-sm transition-colors flex items-center space-x-2 ${
-                isScanning 
-                  ? "bg-secondary text-background border-secondary" 
-                  : "bg-background border-foreground/30 hover:border-secondary hover:text-secondary text-foreground"
-              }`}
-            >
-              {isScanning ? <FiX className="w-4 h-4" /> : <FiCamera className="w-4 h-4" />}
-            </button>
-          )}
+          <button
+            onClick={() => setIsScanning(!isScanning)}
+            className={`px-4 py-2 border-2 rounded font-bold font-mono text-sm transition-colors flex items-center space-x-2 ${
+              isScanning 
+                ? "bg-secondary text-background border-secondary" 
+                : "bg-background border-foreground/30 hover:border-secondary hover:text-secondary text-foreground"
+            }`}
+          >
+            {isScanning ? <FiX className="w-4 h-4" /> : <FiCamera className="w-4 h-4" />}
+          </button>
         </div>
         
         {isScanning ? (
