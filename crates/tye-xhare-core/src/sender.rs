@@ -111,22 +111,9 @@ pub async fn send(
 
         loop {
             tokio::select! {
-                Some(mut local_conn) = local_conn_rx.recv() => {
+                Some(local_conn) = local_conn_rx.recv() => {
                     ui.log(format!("Direct LAN connection established! Ignoring relay."));
-                    
-                    // Send dummy banner to satisfy Receiver's `skip banner` logic
-                    if let Err(e) = local_conn.send(b"LAN_BANNER").await {
-                        return Err(format!("Failed to send LAN banner: {}", e));
-                    }
-                    
-                    // Wait for Receiver's handshake, mirroring Relay behavior
-                    match local_conn.receive().await {
-                        Ok(data) if data == b"handshake" => {
-                            return Ok(local_conn);
-                        },
-                        Ok(_) => return Err("Unexpected message during LAN handshake".to_string()),
-                        Err(e) => return Err(format!("Failed to receive LAN handshake: {}", e)),
-                    }
+                    return Ok(local_conn);
                 },
                 result = c.receive() => {
                     match result {
